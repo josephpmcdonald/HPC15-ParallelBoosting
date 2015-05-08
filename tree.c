@@ -137,9 +137,9 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
 
 int BestSplit(float data[][d], int n, int first, int col, int pos, double *impurity) {
 
-/* Returns the index of the table with the least impurity
- * after splitting. Partition rows up to and including that
- * index from everything afterwards.
+/* Returns the row/index of the table with the least impurity after splitting
+ * for fixed column/feature col. Partition rows up to and including that index
+ * from everything afterwards.
  *
  * data = array of data sorted on index a 
  * n    = length of table (# of rows/samples)
@@ -156,18 +156,15 @@ int BestSplit(float data[][d], int n, int first, int col, int pos, double *impur
 
     int neg = n - pos;
     int lpos = 0;
-    //int lneg = 0;
-    double lp;
-    double rp;
 
+    int argmin = n - 1;//start with the whole node
     double threshold;
-    double P;
-    int argmin = -1;
     double threshmin;
+    double P;
     double Pmin = GINI(pos, n);//initial impurity of node
 
     //Tabulate impurity for each possible threshold split    
-    i = 0;
+    int i = 0;
     while (i < n) {
 
         threshold = data[first+i][col];
@@ -175,12 +172,16 @@ int BestSplit(float data[][d], int n, int first, int col, int pos, double *impur
         while (data[first+i][col] == threshold) {
             if (data[first+i][d-1] == 1)
                 lpos += 1;
+
             ++i;
         }
 
         //Note that points on left = i, right = n-i
 
-        //If i=n, this is the whole node and the impurity is initial
+        /*
+        If i=n, this is the whole node and the impurity is the initial
+        which is already done. i=n would cause error below.
+        */
         if (i < n) {
             P = GINI(lpos, i)*i/n + GINI(pos-lpos, n-i)*(n-i)/n;
 
@@ -199,7 +200,7 @@ int BestSplit(float data[][d], int n, int first, int col, int pos, double *impur
 }
 
 
-void SplitNode(struct Node *node, float data[][d], int n, int first) {
+void SplitNode(struct Node *node, float data[][d], int n, int first, int level) {
 
 /* Creates two branches of the decision tree on the array data. End condition
  * creates leaf if the purity of the node is small or if there are few
@@ -228,10 +229,13 @@ void SplitNode(struct Node *node, float data[][d], int n, int first) {
         node->class = -1;
     else if (node->parent)
         node->class = node->parent->class;
-    else
+    else {
+        fprint("Root node is evenly balanced.\n");
+        node->class = 0;
+    }
 
     //If branch is small or almost pure, make leaf
-    if (n < 6 || GINI(pos, n) < 0.01) {
+    if (n < 6 || GINI(pos, n) < 0.01 || level == 6) {
         node->left = NULL;
         node->right = NULL;
         return;
@@ -240,28 +244,43 @@ void SplitNode(struct Node *node, float data[][d], int n, int first) {
 
     int col;
     int row; //best row to split at for particular column/feature
+    int localrow; //first + localrow = row; receives BestSplit which returns integer in [-1, n-1]
     double threshold; //best threshold to split at for column/feature
     double impurityaddress;
     double *impurity = &impurityaddress; //pointer to impurity for feature
     int bestcol; //feature with best split
-    double bestthresh; //threshold split for best feature
+    int bestrow; //best row to split for best feature
+    double bestthresh; //threshold split for best feature (data[bestrow][bestcol])
     double Pmin = 100; //minimum impurity seen so far
 
     //Sort table. Then find best column/feature, threshold, and impurity
     for (col = 0; col < d-1; ++col) {
         Sort(data, first, first+n-1, col);
-        row = BestSplit(data, n, first, col, pos, impurity);
+        localrow = BestSplit(data, n, first, col, pos, impurity);
+        row = first + localrow;
         threshold = data[row][col];
-        
+
         //If current column has better impurity, save col, thresh, and Pmin
         if (*impurity < Pmin) {
             bestcol = col;
+            bestrow = row;
             bestthresh = threshold;
             Pmin = *impurity;
         }
     }
 
+    //If splitting doesn't improve purity (best split is at the end) stop
+    if (bestrow == first+n-1) {
+        node->left = NULL;
+        node->right = NULL;
+        return;
+    }
+
     Sort(data, first, first+n-1, bestcol);
+
+    //Quick possibly unnecessary check just to make sure code works correctly
+    if (bestthresh != data[bestrow][bestcol])
+        fprint("ERROR IN SplitNode: TREE BUILDING MESSED UP.\n");
 
     //For feature, threshold with best impurity, save to node attributes
     node->index = bestcol;
@@ -274,8 +293,15 @@ void SplitNode(struct Node *node, float data[][d], int n, int first) {
     left.parent = node;
     node->right = &right;
     node->left = &left;
-    
 
+    int first_r = bestrow+1;
+    int n_l = first_r - first;
+    int n_r = n - n_l;
+
+    SplitNode(left, data, n_l, first, level+1);
+    SplitNode(right, data, n_r, first_r, level+1);
+
+    return;
 }
 
 
@@ -415,14 +441,9 @@ struct node* CountSplit(float data[][d], int n, int a, node *) {
 
 
 
-int main(int argc, char *argv[]) {
-    
+int main(int argc, char *argv[]) { 
 
-    double a[d];
-    a[0] = 1.;
-    printf("%f\n", a[0]);
     return 0;
-
 }
 
 
