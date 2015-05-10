@@ -6,7 +6,7 @@
 
 /* Notes: Use main to test functions.
  * 
- * TODO: Merge
+ * TODO: Merge, BuildTree, TestTree, TreeFree, tree pruning
  *
  *
  */
