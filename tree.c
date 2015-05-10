@@ -1,34 +1,40 @@
-#include <stdio.h>
 #include <stdlib.h>
+#include <stdio.h>
 #include <math.h>
+#include "tree.h"
+
 
 /* Notes: Use main to test functions.
  * 
- * TODO:
- * In BestSplit, take care of case when i=n before computing impurity, else division by 0
+ * TODO: Merge
  *
  *
  */
 
 
-#define GINI(pos, n) (2.*(pos)/(n)*((n)-(pos))/(n))
-#define ENTROPY(pos, n) ((pos)/(n)*log((pos)/(n)) + ((n)-(pos))/(n)*log(((n)-(pos))/(n)))
+static const int classes = 2;
+static const int N = 1000;
 
-const int classes = 2;
-const int N = 1000;
-const int d = 10;
+void MergeSort(double data[][D], int first, int last, int a) {
 
-struct Node {
-    struct Node *parent;
-    struct Node *right;
-    struct Node *left;
-    int index;
-    double threshold;
-    double class;
-};
+    if (first >= last)
+        return;
 
+    int mid = (last-first)/2;
+    MergeSort(double data[][D], int first, first+mid, int a);
+    MergeSort(double data[][D], int first+mid+1, int last, int a);
 
-void Sort(float data[][d], int first, int last, int a) {
+    Merge(double data[][D], int first, int first+mid, int last, int a);
+    return;
+}
+
+void Merge(double data[][D], int first, int mid, int last, int a) {
+    //TODO
+
+    return;
+}
+
+void Sort(double data[][D], int first, int last, int a) {
 
 /* Sort and Partition implements quicksort and sorts a 2-dimensional
  * array on a particular index a between indices first and last. Sort places
@@ -56,7 +62,7 @@ void Sort(float data[][d], int first, int last, int a) {
 }
 
 
-void Partition(float data[][d], int first, int last, int a, int ends[]) {
+void Partition(double data[][D], int first, int last, int a, int ends[]) {
 
 /* Partition implements the partition function in quicksort. It groups
  * rows that match the pivot value together to minimize recursive calls
@@ -75,6 +81,7 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
     int i = first;
     int j = last-1;
     int k = last;
+    int l;
     int ind;
     double holder;
     while (i < j) {
@@ -82,16 +89,17 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
             ++i;
         else if (data[i][a] > pivot) {
             //swap i with j, reduce j
-            for (ind = 0; ind < d; ++ind) {
+            for (ind = 0; ind < D; ++ind) {
                 holder = data[j][ind];
                 data[j][ind] = data[i][ind];
                 data[i][ind] = holder;
             }
             --j;
         }
-        else { //(data[i][a] == pivot)
+        //(data[i][a] == pivot)
+        else { 
             //i goes to k-1, k-1 to j, and j to i, reduce j, reduce k
-            for (ind = 0; ind < d; ++ind) {
+            for (ind = 0; ind < D; ++ind) {
                 holder = data[i][ind];
                 data[i][ind] = data[j][ind];
                 data[j][ind] = data[k-1][ind];
@@ -107,8 +115,9 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
         ++i;
     else if (data[i][a] > pivot)
         --j;
-    else { // (data[i][a] == pivot) 
-        for (ind = 0; ind < d; ++ind) {
+    //(data[i][a] == pivot)
+    else {
+        for (ind = 0; ind < D; ++ind) {
             holder = data[i][ind];
             data[i][ind] = data[k-1][ind];
             data[k-1][ind] = holder;
@@ -121,7 +130,7 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
     //Last-k+1 entries match pivot. Swap to the dividing region, starting at i.
     int matches = last-k+1;
     for (l = 0; l < matches; ++l) {
-        for (ind = 0; ind < d; ++ind) {
+        for (ind = 0; ind < D; ++ind) {
             holder = data[i+l][ind];
             data[i+l][ind] = data[k+l][ind];
             data[k+l][ind] = holder;
@@ -135,7 +144,7 @@ void Partition(float data[][d], int first, int last, int a, int ends[]) {
 }
 
 
-int BestSplit(float data[][d], int n, int first, int col, int pos, double *impurity) {
+int BestSplit(double data[][D], int n, int first, int col, int pos, double *impurity) {
 
 /* Returns the row/index of the table with the least impurity after splitting
  * for fixed column/feature col. Partition rows up to and including that index
@@ -170,7 +179,7 @@ int BestSplit(float data[][d], int n, int first, int col, int pos, double *impur
         threshold = data[first+i][col];
 
         while (data[first+i][col] == threshold) {
-            if (data[first+i][d-1] == 1)
+            if (data[first+i][D-1] == 1)
                 lpos += 1;
 
             ++i;
@@ -200,7 +209,7 @@ int BestSplit(float data[][d], int n, int first, int col, int pos, double *impur
 }
 
 
-void SplitNode(struct Node *node, float data[][d], int n, int first, int level) {
+void SplitNode(struct Node *node, double data[][D], int n, int first, int level) {
 
 /* Creates two branches of the decision tree on the array data. End condition
  * creates leaf if the purity of the node is small or if there are few
@@ -213,74 +222,71 @@ void SplitNode(struct Node *node, float data[][d], int n, int first, int level) 
  * first = first index of samples on branch of node
  */
 
+    node->left = NULL;
+    node->right = NULL;
+
     //Get initial counts for positive/negative labels
     int i;
     int pos;
     for (i = 0; i < n; ++i) {
-        if (data[first+i][d-1] == 1.)
+        if (data[first+i][D-1] == 1.)
             pos += 1;
     }
     int neg = n - pos;
 
     //Declare class for node in case of pruning on child
     if (pos > neg)
-        node->class = 1;
+        node->label = 1;
     else if (pos < neg)
-        node->class = -1;
+        node->label = -1;
     else if (node->parent)
-        node->class = node->parent->class;
+        node->label = node->parent->label;
     else {
-        fprint("Root node is evenly balanced.\n");
-        node->class = 0;
+        printf("Root node is evenly balanced.\n");
+        node->label = 0;
     }
+
 
     //If branch is small or almost pure, make leaf
-    if (n < 6 || GINI(pos, n) < 0.01 || level == 6) {
-        node->left = NULL;
-        node->right = NULL;
+    if (n < 6 || GINI(pos, n) < 0.01 || level == 6)
         return;
-    }
-
 
     int col;
     int row; //best row to split at for particular column/feature
     int localrow; //first + localrow = row; receives BestSplit which returns integer in [-1, n-1]
     double threshold; //best threshold to split at for column/feature
-    double impurityaddress;
-    double *impurity = &impurityaddress; //pointer to impurity for feature
+    double impurity; //impurity for best split in feature/column
     int bestcol; //feature with best split
     int bestrow; //best row to split for best feature
     double bestthresh; //threshold split for best feature (data[bestrow][bestcol])
     double Pmin = 100; //minimum impurity seen so far
 
     //Sort table. Then find best column/feature, threshold, and impurity
-    for (col = 0; col < d-1; ++col) {
+    for (col = 0; col < D-1; ++col) {
         Sort(data, first, first+n-1, col);
-        localrow = BestSplit(data, n, first, col, pos, impurity);
+        localrow = BestSplit(data, n, first, col, pos, &impurity);
         row = first + localrow;
         threshold = data[row][col];
 
         //If current column has better impurity, save col, thresh, and Pmin
-        if (*impurity < Pmin) {
+        if (impurity < Pmin) {
             bestcol = col;
             bestrow = row;
             bestthresh = threshold;
-            Pmin = *impurity;
+            Pmin = impurity;
         }
     }
 
     //If splitting doesn't improve purity (best split is at the end) stop
-    if (bestrow == first+n-1) {
-        node->left = NULL;
-        node->right = NULL;
+    if (bestrow == first+n-1)
         return;
-    }
+
 
     Sort(data, first, first+n-1, bestcol);
 
     //Quick possibly unnecessary check just to make sure code works correctly
     if (bestthresh != data[bestrow][bestcol])
-        fprint("ERROR IN SplitNode: TREE BUILDING MESSED UP.\n");
+        printf("ERROR IN SplitNode: TREE BUILDING MESSED UP.\n");
 
     //For feature, threshold with best impurity, save to node attributes
     node->index = bestcol;
@@ -298,42 +304,43 @@ void SplitNode(struct Node *node, float data[][d], int n, int first, int level) 
     int n_l = first_r - first;
     int n_r = n - n_l;
 
-    SplitNode(left, data, n_l, first, level+1);
-    SplitNode(right, data, n_r, first_r, level+1);
+    SplitNode(&left, data, n_l, first, level+1);
+    SplitNode(&right, data, n_r, first_r, level+1);
 
     return;
 }
 
+struct Node *BuildTree(double data[][D]) {
+    
+    struct Node root;
 
+    return &root;
+}
+
+double TestPoint(struct Node *root, double *data) {
+    
+    struct Node *node = root;
+    while (node->left != NULL && node->right != NULL) {
+        ind = node->index;
+        if (data[ind] < node->threshold)
+            node = node->left;
+        else
+            node = node->right;
+    }
+
+    return node->label;
+}
+
+void TreeFree(struct Node *root) {
+    if (root->right)
+
+    return;
+}
 
 /*
-    double *ldata = malloc(argmin * sizeof(double*));
-    double *rdata = malloc((n - argmin) * sizeof(double*));
-    double *lmatrix = malloc(argmin * d * sizeof(double));
-    double rmatrix = malloc((n - argmin) * d * sizeof(double));
-    for (i = 0; i < argmin; ++i)
-        ldata[i] = &lmatrix[i*d];
-    for (i = 0; i < n-argmin; ++i)
-        rdata[i] = &rmatrix[i*d];
+struct node *CountSplit(float data[][d], int n, int a, node *) {
 
-    int j = 0;
-    for (i = 0; i < argmin; ++i) {
-        for (j = 0; j < d; ++j)
-            ldata[i][j] = data[i][j];
-    }
-
-    for (i = 0; i < n - argmin; ++i) {
-        for (j = 0; j < d; ++j)
-            rdata[i][j] = data[i + argmin][j];
-    }
-*/
-
-
-
-
-struct node* CountSplit(float data[][d], int n, int a, node *) {
-
-/* data = node data
+ * data = node data
  * n = length of data
  * a = index to split on
  *
@@ -348,7 +355,7 @@ struct node* CountSplit(float data[][d], int n, int a, node *) {
  * i+1 = total left count
  * n-(i+1) = total right count
  *
- */
+ *
     
     //
     //Counts stores pointer to each row of matrix
@@ -436,12 +443,43 @@ struct node* CountSplit(float data[][d], int n, int a, node *) {
     return 0;
 }
 
-
+*/
 
 
 
 
 int main(int argc, char *argv[]) { 
+
+    double data[20][D] = {{3, 2, 1},
+        {4, 1, 0},
+        {3, 1, 0},
+        {5, 3, 1},
+        {1, 6, 1},
+        {8, 2, 0},
+        {2, 4, 1},
+        {5, 2, 0},
+        {9, 1, 0},
+        {5, 4, 0},
+        {2, 1, 0},
+        {1, 1, 1},
+        {3, 1, 1},
+        {2, 1, 0},
+        {8, 3, 0},
+        {5, 1, 0},
+        {6, 4, 0},
+        {9, 1, 1},
+        {6, 0, 1},
+        {11, 11, 0}};
+
+    Sort(data, 0, 19, 1);
+    int i, j;
+    for (i = 0; i < 20; ++i) {
+        for (j = 0; j < D; ++j)
+            printf("%f ", data[i][j]);
+        printf("\n");
+    }
+
+    
 
     return 0;
 }
