@@ -115,20 +115,6 @@ double **MNIST17() {
     return data17;
 }
 
-int main(int argc, char *argv[]) {
-
-    double **data17 = MNIST17();
-
-    int i;
-    for (i = 0; i < 10; ++i)
-        printf("data17[%d]=%f\n", i, data17[i][28*28]);
-
-    for (i = 0; i < 13007; ++i)
-        free(data17[i]);
-    free(data17);
-
-    return 0;
-}
 
 
 

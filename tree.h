@@ -3,24 +3,30 @@
 #define D 3
 
 
-struct Node {
-    struct Node *parent;
-    struct Node *right;
-    struct Node *left;
+struct TreeNode {
+    struct TreeNode *parent;
+    struct TreeNode *right;
+    struct TreeNode *left;
     int index;
     double threshold;
     double label;
 };
 
-//tree.c
-void Sort(double data[][D], int first, int last, int a);
-void Partition(double data[][D], int first, int last, int a, int ends[]);
-int BestSplit(double data[][D], int n, int first, int col, int pos, double *impurity);
-void SplitNode(struct Node *node, double data[][D], int n, int first, int level);
-struct Node *BuildTree(data[][D], int n);
-double TestPoint(struct Node *root, double *data);
-void TreeFree(struct Node *node);
+typedef struct TreeNode Node;
 
+//sort.c
+void MergeSort(double **data, int first, int last, int a);
+void Merge(double **data, int first, int mid, int last, int a);
+void Sort(double **data, int first, int last, int a);
+void Partition(double **data, int first, int last, int a, int ends[]);
+
+//tree.c
+int BestSplit(double **data, int n, int first, int col, int pos, double *impurity);
+void SplitNode(Node *node, double **data, int n, int first, int level);
+void BuildTree(Node *root, double **data, int n);
+double TestPoint(Node *root, double *data);
+void TreeFree(Node *node);
+void TreePrint(Node *node, int level);
 
 
 //data.c
