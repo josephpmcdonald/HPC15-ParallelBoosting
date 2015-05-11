@@ -17,6 +17,11 @@ void Sort(double data[][D], int first, int last, int a);
 void Partition(double data[][D], int first, int last, int a, int ends[]);
 int BestSplit(double data[][D], int n, int first, int col, int pos, double *impurity);
 void SplitNode(struct Node *node, double data[][D], int n, int first, int level);
+struct Node *BuildTree(data[][D], int n);
+double TestPoint(struct Node *root, double *data);
+void TreeFree(struct Node *node);
+
+
 
 //data.c
 double **MNIST17();

@@ -6,14 +6,12 @@
 
 /* Notes: Use main to test functions.
  * 
- * TODO: Merge, BuildTree, TestTree, TreeFree, tree pruning
- *
- *
+ * TODO: Merge, BuildTree, TestTree, tree pruning
+ * Change references to data to array of pointers to array of doubles
+ * 
  */
 
 
-static const int classes = 2;
-static const int N = 1000;
 
 void MergeSort(double data[][D], int first, int last, int a) {
 
@@ -310,15 +308,16 @@ void SplitNode(struct Node *node, double data[][D], int n, int first, int level)
     return;
 }
 
-struct Node *BuildTree(double data[][D]) {
-    
+struct Node *BuildTree(double data[][D], int n) {
+
     struct Node root;
+    SplitNode(&root, data, n, 0, 0);
 
     return &root;
 }
 
 double TestPoint(struct Node *root, double *data) {
-    
+
     struct Node *node = root;
     while (node->left != NULL && node->right != NULL) {
         ind = node->index;
@@ -331,11 +330,17 @@ double TestPoint(struct Node *root, double *data) {
     return node->label;
 }
 
-void TreeFree(struct Node *root) {
-    if (root->right)
-
+void TreeFree(struct Node *node) {
+    if (node == NULL){
+        return;
+    }
+    
+    TreeFree(node->left);
+    TreeFree(node->right);
     return;
 }
+
+
 
 /*
 struct node *CountSplit(float data[][d], int n, int a, node *) {
