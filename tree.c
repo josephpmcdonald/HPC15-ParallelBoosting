@@ -175,7 +175,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
             pos_w += data[first+i][D];
     }
     int neg = n - pos;
-    double = 1 - pos_w
+    double neg_w = 1 - pos_w;
     
     //Declare class for node in case of pruning on child
     if (pos_w > neg_w)
