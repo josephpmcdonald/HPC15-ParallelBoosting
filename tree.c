@@ -6,12 +6,12 @@
 
 /* Notes: Use main to test functions.
  * 
- * TODO: Merge, TestPoint, tree pruning
+ * TODO: Accurate Threshold
  * 
  */
 
 
-int WeightedBestSplit(double **data, double *weights, int n, int first, int col, double pos, double tot, double *impurity) {
+int WeightedBestSplit(double **data, int n, int first, int col, double pos, double tot, double *impurity) {
 
 /* Returns the row/index of the table with the least impurity after splitting
  * for fixed column/feature col. Partition rows up to and including that index
@@ -159,6 +159,9 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
  * first = first index of samples on branch of node
  */
 
+    int max_level = 2;
+    int min_points = 6;
+
     node->left = NULL;
     node->right = NULL;
     node->index = -1;
@@ -170,12 +173,14 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     double tot = 0;//total weight
     for (i = 0; i < n; ++i) {
         tot += data[first+i][D];
-        if (data[first+i][D-1] > 0)
+
+        if (data[first+i][D-1] > 0){
             pos += 1;
             pos_w += data[first+i][D];
+        }
     }
     int neg = n - pos;
-    double neg_w = 1 - pos_w;
+    double neg_w = tot - pos_w;
     
     //Declare class for node in case of pruning on child
     if (pos_w > neg_w)
@@ -185,27 +190,26 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     else if (node->parent)
         node->label = node->parent->label;
     else {
-        printf("Root node is evenly balanced.\n");
+        //printf("Root node is evenly balanced.\n");
         node->label = 0;
     }
 
-    ///////////////TEST/////////////
+    ///////////////TEST//////////////////
     printf("pos = %f, neg = %f, lab = %f\n", pos_w, neg_w, node->label);
-
-
-    ////////////////////////////////TEST//////////////
-    //If branch is small or almost pure, make leaf
     printf("GINI: %f\n", GINI(pos_w, tot));
-    if (n < 6) {
-        printf("small branch: %d points\n", n, level);
+    /////////////////////////////////////
+
+    //If branch is small or almost pure, make leaf
+    if (n < min_points) {
+        //printf("small branch: %d points\n", n, level);
         return;
     }
-    else if (level == 6) {
-        printf("leaf node: level = 6\n");
+    else if (level == max_level) {
+        //printf("leaf node: level = max\n");
         return;
     }
     else if (pos == 0 || neg == 0) {
-        printf("pure node\n");
+        //printf("pure node\n");
         return;
     }
 
@@ -222,7 +226,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     //Sort table. Then find best column/feature, threshold, and impurity
     for (col = 0; col < D-1; ++col) {
         Sort(data, first, first+n-1, col);
-        localrow = BestSplit(data, n, first, col, pos_w, &impurity);
+        localrow = WeightedBestSplit(data, n, first, col, pos_w, tot, &impurity);
         row = first + localrow;
         threshold = data[row][col];
 
@@ -235,12 +239,9 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
         }
     }
 
-//////////////////////////////////////////////////////////////////////
-    printf("bestrow = %d, bestcol = %d\n", bestrow, bestcol);
-    
     //If splitting doesn't improve purity (best split is at the end) stop
     if (bestrow == first+n-1) {
-        printf("no improvement\n");
+        //printf("no improvement\n");
         return;
     }
 
@@ -354,16 +355,16 @@ int main(int argc, char *argv[]) {
         {3, 1, -1, 0.05},
         {5, 7, 1, 0.05},
         {1, 6, 1, 0.05},
-        {8, 2, 1, 0.05},
+        {8, 2, -1, 0.05},
         {2, 8, 1, 0.05},
         {5, 2, -1, 0.05},
-        {9, 1, 1, 0.05},
+        {9, 1, -1, 0.05},
         {5, 4, -1, 0.05},
         {2, 1, -1, 0.05},
         {1, 6, 1, 0.05},
         {3, 9, 1, 0.05},
         {2, 1, -1, 0.05},
-        {8, 3, 1, 0.05},
+        {8, 3, -1, 0.05},
         {5, 1, -1, 0.05},
         {6, 4, -1, 0.05},
         {9, 5, 1, 0.05},
@@ -410,113 +411,6 @@ int main(int argc, char *argv[]) {
 
 
 
-/*
-struct node *CountSplit(float data[][d], int n, int a, node *) {
-
- * data = node data
- * n = length of data
- * a = index to split on
- *
- * Table computes/stores impurity for splitting with data <= threshold
- * counts[i][0] = ith threshold
- * counts[i][1] = left pos countcounts[i][2] = left neg count = i+1 - left pos count
- * counts[i][3] = impurity (Gini: 2*p*(1-p), entropy: p*log p + (1-p)log(1-p))
- *
- * Thus:
- * (pos - counts[i][1]) = right pos count
- * (neg - counts[i][2]) = right neg count
- * i+1 = total left count
- * n-(i+1) = total right count
- *
- *
-    
-    //
-    //Counts stores pointer to each row of matrix
-    double *matrix = calloc(n*3, sizeof(double));
-    if (matrix)
-        double *counts[] = malloc(n*sizeof(double*));
-
-    int pos = 0;
-    int neg = 0;
-    int lpos = 0;
-    int left = 0;
-    int right = n;
-    double lp;
-    double rp;
-    double purity;
-    double argmin;
-    double threshmin;
-
-    //Initialize pointers in counts
-    int i = 0;
-    for (i = 0; i < n; ++i)
-        counts[i] = &matrix[3*i];
-
-    //Get the initial counts for positive/negatives.
-    for (i = 0; i < n; ++i) {
-        if (data[d*i + d-1] == 1.)
-            pos += 1;
-    }
-
-    neg = n - pos;
-    
-    i = 0;
-    int ind = 0;
-    double threshold;
-    double Pmin = 100.; //Upper bound on purity
-    int argmin;
-    while (i < n) {
-
-        threshold = data[i][a];
-        counts[ind][0] = threshold;
-
-        while (data[i][a] == threshold) {
-            if (data[i][d-1] == 1) {
-                counts[ind][1] += 1;
-                lpos += 1;
-            }
-
-            ++i;
-            //Now left = i
-
-            //else lneg = i - lpos
-
-//            else if (data[i][d-1] == -1)
-//                counts[ind][2] += 1;
-//            else
-//                printf("Data not clean.\n");
-
-        }
-
-        //Note that points on left = i, right = n-i
-        lp = counts[ind][1]/i;
-        //lp = (double) lpos/i;
-        rp = (double) (pos - counts[ind][1])/(n - i);
-        //rp = (double) (pos - lpos)/(n - i);
-
-        //P = (left/n)*2*lp*(1 - lp) + (right/n)*2*rp*(1 - rp) and counts[ind][1]/n = (left/n)*lp
-        counts[ind][2] = 2*(counts[ind][1]/n)*(1 - lp) + 2*(n - i)/n*rp*(1 - rp);
-        purity = 2.*lpos/n*(1 - lp) + 2.*(pos - lpos)/n*(1 - rp);
-
-        if (purity < Pmin) {
-            Pmin = purity;
-            argmin = i; //Note this is the index of the first right point
-            threshmin = threshold;
-        }
-
-        //++ind;
-    }
-    
-    for (i = 0; i < argmin; ++i) {
-        
-
-    }
-
-
-    return 0;
-}
-
-*/
 
 
 
