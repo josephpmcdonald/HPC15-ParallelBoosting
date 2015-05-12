@@ -11,6 +11,76 @@
  */
 
 
+int WeightedBestSplit(double **data, double *weights, int n, int first, int col, double pos, double tot, double *impurity) {
+
+/* Returns the row/index of the table with the least impurity after splitting
+ * for fixed column/feature col. Partition rows up to and including that index
+ * from everything afterwards.
+ *
+ * data     = array of data sorted on index a 
+ * n        = length of table (# of rows/samples)
+ * first    = first index in the node
+ * col      = sorting/splitting feature/column of data
+ * pos      = weight of positive labels
+ * tot      = total weight of all labels
+ * impurity = pointer to save impurity after split
+ *
+ * Thus:
+ * (pos - lpos) = right pos count
+ * i = total left count
+ * n - i = total right count
+ * 
+ *
+ */
+
+    double neg = tot - pos;
+    double lpos = 0;
+    double left = 0;
+
+    int argmin = n - 1;//start with the whole node
+    double threshold;
+    double threshmin;
+    double P;
+    double Pmin = GINI(pos, tot);//initial impurity of node
+
+    //Tabulate impurity for each possible threshold split    
+    int i = 0;
+    while (i < n) {
+
+        threshold = data[first+i][col];
+
+        while (i < n && (data[first+i][col] == threshold)) {
+            if (data[first+i][D-1] > 0)
+                lpos += data[first+i][D];
+
+            left += data[first+i][D];
+            ++i;
+        }
+
+        //Note that points on left = i, right = n-i
+
+        /*
+        If i=n, this is the whole node and the impurity is the initial
+        which is already done. i=n would cause error below.
+        */
+        if (i < n) {
+            P = GINI(lpos, left)*left/tot + GINI(pos-lpos, tot-left)*(tot-left)/tot;
+
+            //Save threshold/index with min impurity
+            if (P < Pmin) {
+                Pmin = P;
+                argmin = i - 1;
+                threshmin = threshold; 
+            }
+        }
+    }
+
+    //Save the minimum impurity to compare against other indices
+    *impurity = Pmin;
+    return argmin;
+}
+
+
 int BestSplit(double **data, int n, int first, int col, int pos, double *impurity) {
 
 /* Returns the row/index of the table with the least impurity after splitting
@@ -46,7 +116,7 @@ int BestSplit(double **data, int n, int first, int col, int pos, double *impurit
         threshold = data[first+i][col];
 
         while (i < n && (data[first+i][col] == threshold)) {
-            if (data[first+i][D-1] == 1)
+            if (data[first+i][D-1] > 0)
                 lpos += 1;
 
             ++i;
@@ -96,16 +166,21 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     //Get initial counts for positive/negative labels
     int i;
     int pos = 0;
+    double pos_w = 0;//positive weight
+    double tot = 0;//total weight
     for (i = 0; i < n; ++i) {
-        if (data[first+i][D-1] == 1.)
+        tot += data[first+i][D];
+        if (data[first+i][D-1] > 0)
             pos += 1;
+            pos_w += data[first+i][D];
     }
     int neg = n - pos;
-
+    double = 1 - pos_w
+    
     //Declare class for node in case of pruning on child
-    if (pos > neg)
+    if (pos_w > neg_w)
         node->label = 1;
-    else if (pos < neg)
+    else if (pos_w < neg_w)
         node->label = -1;
     else if (node->parent)
         node->label = node->parent->label;
@@ -115,12 +190,12 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     }
 
     ///////////////TEST/////////////
-    printf("pos = %d, neg = %d, lab = %f\n", pos, neg, node->label);
+    printf("pos = %f, neg = %f, lab = %f\n", pos_w, neg_w, node->label);
 
 
     ////////////////////////////////TEST//////////////
     //If branch is small or almost pure, make leaf
-    printf("GINI: %f\n", GINI(pos, n));
+    printf("GINI: %f\n", GINI(pos_w, tot));
     if (n < 6) {
         printf("small branch: %d points\n", n, level);
         return;
@@ -142,12 +217,12 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     int bestcol = -1; //feature with best split
     int bestrow = first+n-1; //best row to split for best feature
     double bestthresh; //threshold split for best feature (data[bestrow][bestcol])
-    double Pmin = GINI(pos, n); //minimum impurity seen so far
+    double Pmin = GINI(pos_w, tot); //minimum impurity seen so far
 
     //Sort table. Then find best column/feature, threshold, and impurity
     for (col = 0; col < D-1; ++col) {
         Sort(data, first, first+n-1, col);
-        localrow = BestSplit(data, n, first, col, pos, &impurity);
+        localrow = BestSplit(data, n, first, col, pos_w, &impurity);
         row = first + localrow;
         threshold = data[row][col];
 
