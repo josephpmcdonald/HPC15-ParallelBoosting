@@ -195,7 +195,8 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     }
 
     ///////////////TEST//////////////////
-    printf("pos = %f, neg = %f, lab = %f\n", pos_w, neg_w, node->label);
+    printf("LEVEL: %d\n", level);
+    printf("pos=%d, neg=%d, posw=%f, negw=%f, lab=%f\n", pos, neg, pos_w, neg_w, node->label);
     printf("GINI: %f\n", GINI(pos_w, tot));
     /////////////////////////////////////
 
@@ -225,6 +226,8 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
 
     //Sort table. Then find best column/feature, threshold, and impurity
     for (col = 0; col < D-1; ++col) {
+        printf("\r%5d/%5d", col, D);
+        fflush(stdout);
         Sort(data, first, first+n-1, col);
         localrow = WeightedBestSplit(data, n, first, col, pos_w, tot, &impurity);
         row = first + localrow;
@@ -238,6 +241,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
             Pmin = impurity;
         }
     }
+    printf("\r           \r");
 
     //If splitting doesn't improve purity (best split is at the end) stop
     if (bestrow == first+n-1) {
@@ -269,7 +273,9 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     int n_l = first_r - first;
     int n_r = n - n_l;
 
+    printf("LEFT\n");
     SplitNode(l, data, n_l, first, level+1);
+    printf("RIGHT\n");
     SplitNode(r, data, n_r, first_r, level+1);
 
     return;

@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "tree.h"
+#include "util.h"
 
 //Note that D represents the number of features + 1 (for the label). 
 
@@ -48,6 +49,7 @@ double Error(Node *tree, double **data, int n) {
 
 double AdaBoost(double **data, int n) {
     
+    timestamp_type start, stop;
     int i;
     int t;
     int T = 1;
@@ -59,19 +61,27 @@ double AdaBoost(double **data, int n) {
     for (t = 0; t < T; ++t)
         H[t] = malloc(sizeof(Node));
 
+    printf("Starting AdaBoost\n");
+    get_timestamp(&start);
     for (i = 0; i < n; ++i) 
         data[i][D] = 1./n;
 
     for (t = 0; t < T; ++t) {
+        printf("t = %d: Building tree\n", t);
         BuildTree(H[t], data, n);
+        printf("checking error\n");
         e = Error(H[t], data, n);
         error[t] = e;
         alpha[t] = 0.5*log((1 - e)/e);
         Z = 2*sqrt(e*(1 - e));
+        printf("reweighting\n");
         for (i = 0; i < n; ++i){
             data[i][D] = data[i][D]*exp(-alpha[t]*WeakLearner(H[t], data[i])*data[i][D-1])/Z;
         }
     }
+    get_timestamp(&stop);
+    double elapsed = timestamp_diff_in_seconds(start, stop);
+    printf("Elapsed time: %f seconds\n", elapsed);
 
     double final_error = 0;
     double sum;
@@ -83,6 +93,7 @@ double AdaBoost(double **data, int n) {
         if (data[i][D-1]*sum < 0)
             final_error += 1./n;
     }
+
 
     free(error);
     free(alpha);
@@ -98,6 +109,8 @@ int main(int argc, char *argv[]) {
 
 
     double **data17 = MNIST17();
+    //Node *root = malloc(sizeof(Node));
+    //SplitNode(root, data17, 1000, 0, 0);
 
     //To check appearance of data17
     int i;
@@ -116,6 +129,9 @@ int main(int argc, char *argv[]) {
 
         printf("\n");
     }
+
+    double error = AdaBoost(data17, 13007);
+    printf("Final error: %f\n", error);
 
     for (i = 0; i < 13007; ++i)
         free(data17[i]);
