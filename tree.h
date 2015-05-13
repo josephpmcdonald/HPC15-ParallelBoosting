@@ -17,9 +17,10 @@ struct TreeNode {
 typedef struct TreeNode Node;
 
 //sort.c
+void Sort(double **data, int first, int last, int a);
 void MergeSort(double **data, int first, int last, int a);
 void Merge(double **data, int first, int mid, int last, int a);
-void Sort(double **data, int first, int last, int a);
+void QuickSort(double **data, int first, int last, int a);
 void Partition(double **data, int first, int last, int a, int ends[]);
 
 //tree.c

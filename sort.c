@@ -8,6 +8,13 @@
  */
 
 
+void Sort(double **data, int first, int last, int a) {
+    
+    MergeSort(data, first, last, a);
+    return;
+}
+
+
 void MergeSort(double **data, int first, int last, int a) {
 
     if (first >= last)
@@ -16,23 +23,51 @@ void MergeSort(double **data, int first, int last, int a) {
     int mid = (last-first)/2;
     MergeSort(data, first, first+mid, a);
     MergeSort(data, first+mid+1, last, a);
-
     Merge(data, first, first+mid, last, a);
     return;
 }
 
 
 void Merge(double **data, int first, int mid, int last, int a) {
-    //TODO
+    double **holder = malloc((last-first+1)*sizeof(double*));
+    int i = first;
+    int j = mid+1;
+    int k = 0;
+    
+    while (i < mid+1 && j < last+1) {
+        if (data[i][a] <= data[j][a]) {
+            holder[k] = data[i];
+            ++i;
+        }
+        else {
+            holder[k] = data[j];
+            ++j;
+        }
+        ++k;
+    }
+    while(i < mid+1) {
+        holder[k] = data[i];
+        ++i;
+        ++k;
+    }
+    while(j < last+1) {
+        holder[k] = data[j];
+        ++j;
+        ++k;
+    }
 
+    for (k = 0; k < last-first+1; ++k)
+        data[first + k] = holder[k];
+
+    free(holder);
     return;
 }
 
 
-void Sort(double **data, int first, int last, int a) {
+void QuickSort(double **data, int first, int last, int a) {
 
-/* Sort and Partition implements quicksort and sorts a 2-dimensional
- * array on a particular index a between indices first and last. Sort places
+/* QuickSort and Partition implements quicksort and sorts a 2-dimensional
+ * array on a particular index a between indices first and last. QuickSort places
  * entries matching the pivot next to the pivot in the sorted array to minimize
  * recursive Sort calls in the case of repeated values.
  *
@@ -50,8 +85,8 @@ void Sort(double **data, int first, int last, int a) {
     int ends[2];
 
     Partition(data, first, last, a, ends);
-    Sort(data, first, ends[0], a);
-    Sort(data, ends[1], last, a);
+    QuickSort(data, first, ends[0], a);
+    QuickSort(data, ends[1], last, a);
     
     return;
 }
@@ -78,28 +113,24 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
     int k = last;
     int l;
     int ind;
-    double holder;
+    double *holder;
     while (i < j) {
         if (data[i][a] < pivot)
             ++i;
         else if (data[i][a] > pivot) {
             //swap i with j, reduce j
-            for (ind = 0; ind < D; ++ind) {
-                holder = data[j][ind];
-                data[j][ind] = data[i][ind];
-                data[i][ind] = holder;
-            }
+            holder = data[j];
+            data[j] = data[i];
+            data[i] = holder;
             --j;
         }
         //(data[i][a] == pivot)
         else { 
             //i goes to k-1, k-1 to j, and j to i, reduce j, reduce k
-            for (ind = 0; ind < D; ++ind) {
-                holder = data[i][ind];
-                data[i][ind] = data[j][ind];
-                data[j][ind] = data[k-1][ind];
-                data[k-1][ind] = holder;
-            }
+            holder = data[i];
+            data[i] = data[j];
+            data[j] = data[k-1];
+            data[k-1] = holder;
             --j;
             --k;
         }
@@ -112,11 +143,9 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
         --j;
     //(data[i][a] == pivot)
     else {
-        for (ind = 0; ind < D; ++ind) {
-            holder = data[i][ind];
-            data[i][ind] = data[k-1][ind];
-            data[k-1][ind] = holder;
-        }
+        holder = data[i];
+        data[i] = data[k-1];
+        data[k-1] = holder;
         --j;
         --k;
     }
@@ -125,11 +154,9 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
     //Last-k+1 entries match pivot. Swap to the dividing region, starting at i.
     int matches = last-k+1;
     for (l = 0; l < matches; ++l) {
-        for (ind = 0; ind < D; ++ind) {
-            holder = data[i+l][ind];
-            data[i+l][ind] = data[k+l][ind];
-            data[k+l][ind] = holder;
-        }
+        holder = data[i+l];
+        data[i+l] = data[k+l];
+        data[k+l] = holder;
     }
     
     ends[0] = i-1;

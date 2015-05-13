@@ -52,11 +52,14 @@ double AdaBoost(double **data, int n) {
     timestamp_type start, stop;
     int i;
     int t;
-    int T = 1;
+    int s;
+    int T = 2;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
     double *alpha = malloc(T*sizeof(double));
+    double *running_error = malloc(T*sizeof(double));
+    double sum;
     Node **H = malloc(T*sizeof(Node*));
     for (t = 0; t < T; ++t)
         H[t] = malloc(sizeof(Node));
@@ -69,39 +72,51 @@ double AdaBoost(double **data, int n) {
     for (t = 0; t < T; ++t) {
         printf("t = %d: Building tree\n", t);
         BuildTree(H[t], data, n);
-        printf("checking error\n");
         e = Error(H[t], data, n);
         error[t] = e;
         alpha[t] = 0.5*log((1 - e)/e);
         Z = 2*sqrt(e*(1 - e));
-        printf("reweighting\n");
         for (i = 0; i < n; ++i){
             data[i][D] = data[i][D]*exp(-alpha[t]*WeakLearner(H[t], data[i])*data[i][D-1])/Z;
         }
+
+        running_error[t] = 0;
+        for (i = 0; i < n; ++i) {
+            sum = 0;
+            for (s = 0; s <= t; ++s)
+                sum += alpha[s]*WeakLearner(H[s], data[i]);
+
+            if (data[i][D-1]*sum < 0)
+                 running_error[t] += 1./n;
+        }
+
+        printf("error = %f\n", running_error[t]);
     }
+
     get_timestamp(&stop);
     double elapsed = timestamp_diff_in_seconds(start, stop);
     printf("Elapsed time: %f seconds\n", elapsed);
 
+/*
     double final_error = 0;
-    double sum;
     for (i = 0; i < n; ++i) {
-        sum = 0;
+        sum = 0.;
         for (t = 0; t < T; ++t)
             sum += alpha[t]*WeakLearner(H[t], data[i]);
         
         if (data[i][D-1]*sum < 0)
             final_error += 1./n;
     }
-
+*/
 
     free(error);
     free(alpha);
     for (t = 0; t < T; ++t)
         TreeFree(H[t]);
     free(H);
+    free(running_error);
 
-    return final_error;
+    return 0;
 }
 
 
@@ -130,8 +145,7 @@ int main(int argc, char *argv[]) {
     }
 */
 
-    double error = AdaBoost(data17, 13007);
-    printf("Final error: %f\n", error);
+    AdaBoost(data17, 13007);
 
     for (i = 0; i < 13007; ++i)
         free(data17[i]);

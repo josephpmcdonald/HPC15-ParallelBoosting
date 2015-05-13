@@ -93,6 +93,9 @@ double **MNIST17() {
     lsize=ftell(images);
     //printf("The file is %d bytes\n", lsize);
 
+    fclose(labels);
+    fclose(images);
+
     return data17;
 }
 
