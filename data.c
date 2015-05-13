@@ -60,7 +60,7 @@ double **MNIST17() {
 
         fread(&label, 1, 1, labels);
 
-        if (label == 1 || label == 7) {
+        if (label == 1) {
             //jump to correct line of pixel file
             fseek(images, 16+28*28*i, SEEK_SET);
             for (j = 0; j < 28*28; ++j) {
@@ -68,7 +68,19 @@ double **MNIST17() {
                 data17[count17][j] = (double) pixel;
             }
             //record label at end of entry
-            data17[count17][28*28] = (double) label;
+            data17[count17][28*28] = 1.;
+
+            ++count17;
+        }
+        else if (label == 7) {
+            //jump to correct line of pixel file
+            fseek(images, 16+28*28*i, SEEK_SET);
+            for (j = 0; j < 28*28; ++j) {
+                fread(&pixel, 1, 1, images);
+                data17[count17][j] = (double) pixel;
+            }
+            //record label at end of entry
+            data17[count17][28*28] = -1.;
 
             ++count17;
         }
@@ -131,7 +143,7 @@ double **MNIST49() {
 
         fread(&label, 1, 1, labels);
 
-        if (label == 4 || label == 9) {
+        if (label == 4) {
             //jump to correct line of pixel file
             fseek(images, 16+28*28*i, SEEK_SET);
             for (j = 0; j < 28*28; ++j) {
@@ -139,7 +151,19 @@ double **MNIST49() {
                 data49[count49][j] = (double) pixel;
             }
             //record label at end of entry
-            data49[count49][28*28] = (double) label;
+            data49[count49][28*28] = 1.;
+
+            ++count49;
+        }
+        else if (label == 9) {
+            //jump to correct line of pixel file
+            fseek(images, 16+28*28*i, SEEK_SET);
+            for (j = 0; j < 28*28; ++j) {
+                fread(&pixel, 1, 1, images);
+                data49[count49][j] = (double) pixel;
+            }
+            //record label at end of entry
+            data49[count49][28*28] = -1.;
 
             ++count49;
         }
