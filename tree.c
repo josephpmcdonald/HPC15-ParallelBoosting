@@ -2,6 +2,7 @@
 #include <stdio.h>
 #include <math.h>
 #include "tree.h"
+#include "util.h"
 
 
 /* Notes: Use main to test functions.
@@ -158,6 +159,10 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
  * n     = length of table (# of rows/samples) on branch of node
  * first = first index of samples on branch of node
  */
+    
+    timestamp_type sort_start, sort_stop, split_start, split_stop;
+    double sort_time = 0.;
+    double split_time = 0.;
 
     int max_level = 2;
     int min_points = 6;
@@ -194,12 +199,6 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
         node->label = 0;
     }
 
-    ///////////////TEST//////////////////
-    printf("LEVEL: %d\n", level);
-    printf("pos=%d, neg=%d, posw=%f, negw=%f, lab=%f\n", pos, neg, pos_w, neg_w, node->label);
-    printf("GINI: %f\n", GINI(pos_w, tot));
-    /////////////////////////////////////
-
     //If branch is small or almost pure, make leaf
     if (n < min_points) {
         //printf("small branch: %d points\n", n, level);
@@ -213,6 +212,13 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
         //printf("pure node\n");
         return;
     }
+
+    ///////////////TEST//////////////////
+    printf("LEVEL: %d\n", level);
+    printf("pos=%d, neg=%d, posw=%f, negw=%f, lab=%f\n", pos, neg, pos_w, neg_w, node->label);
+    printf("GINI: %f\n", GINI(pos_w, tot));
+    /////////////////////////////////////
+
 
     int col;
     int row; //best row to split at for particular column/feature
@@ -228,8 +234,14 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     for (col = 0; col < D-1; ++col) {
         printf("\r%5d/%5d", col, D);
         fflush(stdout);
+        get_timestamp(&sort_start);
         Sort(data, first, first+n-1, col);
+        get_timestamp(&sort_stop);
+        get_timestamp(&split_start);
         localrow = WeightedBestSplit(data, n, first, col, pos_w, tot, &impurity);
+        get_timestamp(&split_stop);
+        sort_time += timestamp_diff_in_seconds(sort_start, sort_stop);
+        split_time += timestamp_diff_in_seconds(split_start, split_stop);
         row = first + localrow;
         threshold = data[row][col];
 
@@ -242,6 +254,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
         }
     }
     printf("\r           \r");
+    printf("Sort  time: %f sec\nSplit time: %f sec\n", sort_time, split_time);
 
     //If splitting doesn't improve purity (best split is at the end) stop
     if (bestrow == first+n-1) {

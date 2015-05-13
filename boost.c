@@ -109,13 +109,12 @@ int main(int argc, char *argv[]) {
 
 
     double **data17 = MNIST17();
-    //Node *root = malloc(sizeof(Node));
-    //SplitNode(root, data17, 1000, 0, 0);
 
     //To check appearance of data17
     int i;
     int j;
     int k;
+/*
     for (i = 0; i < 10; ++i)
         printf("data17[%d]=%f\n", i, data17[i][D-1]);
 
@@ -129,6 +128,7 @@ int main(int argc, char *argv[]) {
 
         printf("\n");
     }
+*/
 
     double error = AdaBoost(data17, 13007);
     printf("Final error: %f\n", error);
