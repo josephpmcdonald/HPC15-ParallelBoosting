@@ -10,7 +10,7 @@
 
 void Sort(double **data, int first, int last, int a) {
     
-    MergeSort(data, first, last, a);
+    QuickSort(data, first, last, a);
     return;
 }
 
