@@ -2,6 +2,11 @@
 #include <stdio.h>
 #include "tree.h"
 
+/* TODO: Merge and MergeSort, change sorting to swap pointers instead of
+ * copying rows of data array
+ *
+ */
+
 
 void MergeSort(double **data, int first, int last, int a) {
 

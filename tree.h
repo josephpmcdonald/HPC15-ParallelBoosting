@@ -1,7 +1,7 @@
 #define GINI(pos, n) (2.*(pos)/(n)*((n)-(pos))/(n))
 #define ENTROPY(pos, n) ((pos)/(n)*log((pos)/(n)) + ((n)-(pos))/(n)*log(((n)-(pos))/(n)))
 #define WGINI(pos, tot) (2.*(pos)/(tot)*((tot)-(pos))/(tot))
-#define D 3
+#define D (28*28+1)
 
 //Note that D represents the number of features + 1 (for the label)
 

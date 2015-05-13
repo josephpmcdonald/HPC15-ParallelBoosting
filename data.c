@@ -25,6 +25,7 @@ double **MNIST17() {
     FILE *images;
     images = fopen("train-images.idx3-ubyte", "rb");
 
+/*
     //Print first 30 characters and first 5 images, check identifiable screen pattern
     fseek(labels, 8, SEEK_SET);
     for (i = 0; i < 30; ++i) {
@@ -39,6 +40,7 @@ double **MNIST17() {
         }
         printf("\n");
     }
+*/
 
     //Point to beginning of labels and images (after header info)
     fseek(labels, 8, SEEK_SET);
@@ -94,6 +96,7 @@ double **MNIST49() {
     FILE *images;
     images = fopen("train-images.idx3-ubyte", "rb");
 
+/*
     //Print first 30 characters and first 5 images, check identifiable screen pattern
     fseek(labels, 8, SEEK_SET);
     for (i = 0; i < 30; ++i) {
@@ -108,6 +111,7 @@ double **MNIST49() {
         }
         printf("\n");
     }
+*/
 
     //Point to beginning of labels and images (after header info)
     fseek(labels, 8, SEEK_SET);
@@ -120,7 +124,7 @@ double **MNIST49() {
     double **data49 = malloc(n*sizeof(double*));
 
     for (i = 0; i < n; ++i)
-        data49[i] = malloc((28*28+1)*sizeof(double));
+        data49[i] = malloc((28*28+2)*sizeof(double));
 
     //Count the occurrences of 1/7, and record image and label
     for (i = 0; i < 60000; ++i) {
@@ -150,4 +154,6 @@ double **MNIST49() {
 
     return data49;
 }
+
+
 
