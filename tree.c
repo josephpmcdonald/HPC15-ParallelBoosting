@@ -254,7 +254,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
         }
     }
     //printf("\r           \r");
-    printf("Sort  time: %f sec\nSplit time: %f sec\n", sort_time, split_time);
+    //printf("Sort  time: %f sec\nSplit time: %f sec\n", sort_time, split_time);
 
     //If splitting doesn't improve purity (best split is at the end) stop
     if (bestrow == first+n-1) {
