@@ -34,16 +34,18 @@ double WeakLearner(Node *tree, double *x) {
 
 
 double Error(Node *tree, double **data, int n) {
-
+/* Note that Error returns the weighted error on the data.
+ *
+ */
     int i;
-    int wrong = 0;
+    double error = 0;
 
     for (i = 0; i < n; ++i) {
         if (WeakLearner(tree, data[i])*data[i][D-1] < 0)
-            wrong++;
+            error += data[i][D];
     }
 
-    return (double) wrong/n;
+    return error;
 }
 
 
@@ -53,7 +55,7 @@ double AdaBoost(double **data, int n) {
     int i;
     int t;
     int s;
-    int T = 2;
+    int T = 50;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
