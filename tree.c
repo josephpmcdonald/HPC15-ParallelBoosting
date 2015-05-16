@@ -29,33 +29,33 @@ int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurit
     double lpos = 0;
     double left = 0;
 
-    int argmin = n - 1;//start with the whole node
+    int argmin = first + n - 1;//start with the whole node
     double threshold;
     double threshmin;
     double P;
     double Pmin = GINI(pos, tot);//initial impurity of node
 
     //Tabulate impurity for each possible threshold split    
-    int i = 0;
-    while (i < n) {
+    int i = first;
+    while (i < first+n) {
 
-        threshold = data[first+i]->val;
+        threshold = data[i]->val;
 
-        while (i < n && (data[first+i]->val == threshold)) {
-            if (data[first+i]->label > 0)
-                lpos += data[first+i]->weight;
+        while ((i < first+n) && (data[i]->val == threshold)) {
+            if (data[i]->label > 0)
+                lpos += data[i]->weight;
 
-            left += data[first+i]->weight;
+            left += data[i]->weight;
             ++i;
         }
 
         //Note that points on left = i, right = n-i
 
         /*
-        If i=n, this is the whole node and the impurity is the initial
-        which is already done. i=n would cause error below.
+        If i=first+n, this is the whole node and the impurity is the initial
+        which is already done. i=first+n would cause error below.
         */
-        if (i < n) {
+        if (i < first+n) {
             P = GINI(lpos, left)*left/tot + GINI(pos-lpos, tot-left)*(tot-left)/tot;
 
             //Save threshold/index with min impurity
