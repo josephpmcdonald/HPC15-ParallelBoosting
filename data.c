@@ -14,17 +14,6 @@
  */
 
 
-double **MNIST17() {
-
-    int i;
-    int j;
-    int n = 13007;
-    unsigned char c;
-    FILE *labels;
-    labels = fopen("train-labels.idx1-ubyte", "rb");
-    FILE *images;
-    images = fopen("train-images.idx3-ubyte", "rb");
-
 /*
     //Print first 30 characters and first 5 images, check identifiable screen pattern
     fseek(labels, 8, SEEK_SET);
@@ -41,6 +30,22 @@ double **MNIST17() {
         printf("\n");
     }
 */
+
+double **ParMNIST17() {
+
+    return data;
+}
+
+double **MNIST17() {
+
+    int i;
+    int j;
+    int n = 13007;
+    unsigned char c;
+    FILE *labels;
+    labels = fopen("train-labels.idx1-ubyte", "rb");
+    FILE *images;
+    images = fopen("train-images.idx3-ubyte", "rb");
 
     //Point to beginning of labels and images (after header info)
     fseek(labels, 8, SEEK_SET);
@@ -110,23 +115,6 @@ double **MNIST49() {
     labels = fopen("train-labels.idx1-ubyte", "rb");
     FILE *images;
     images = fopen("train-images.idx3-ubyte", "rb");
-
-/*
-    //Print first 30 characters and first 5 images, check identifiable screen pattern
-    fseek(labels, 8, SEEK_SET);
-    for (i = 0; i < 30; ++i) {
-        fread(&c, 1, 1, labels);
-        printf("%d\n", c);
-    }
-    fseek(images, 16+28*28*0, SEEK_SET);
-    for (i = 0; i < 28*5; ++i) {
-        for (j = 0; j < 28; ++j) {
-            fread(&c, 1, 1, images);
-            printf("%4d ", c);
-        }
-        printf("\n");
-    }
-*/
 
     //Point to beginning of labels and images (after header info)
     fseek(labels, 8, SEEK_SET);
