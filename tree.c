@@ -3,7 +3,7 @@
 #include <math.h>
 #include "tree.h"
 #include "util.h"
-
+#include "mpi.h"
 
 /* Notes: Use main to test functions.
  * 
