@@ -16,6 +16,16 @@ struct TreeNode {
 
 typedef struct TreeNode Node;
 
+struct DataPod{
+    int key;
+    double val;
+    double label;
+    double weight;
+}
+
+typedef struct DataPod Pod;
+
+
 //sort.c
 void Sort(double **data, int first, int last, int a);
 void MergeSort(double **data, int first, int last, int a);
