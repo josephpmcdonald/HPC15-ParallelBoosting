@@ -7,9 +7,70 @@
 
 /* Notes: Use main to test functions.
  * 
- * TODO: Accurate Threshold
+ * TODO: Make threshold midpoint between last left and first right, or inf.
  * 
  */
+
+
+int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurity) {
+
+/* Pod version of WeightedBestSplit
+ *
+ * data     = array of data sorted by value in Pod form 
+ * n        = length of table (# of rows/samples)
+ * first    = first index in the node
+ * pos      = weight of positive labels
+ * tot      = total weight of all labels
+ * impurity = pointer to save impurity after split
+ *
+ */
+
+    double neg = tot - pos;
+    double lpos = 0;
+    double left = 0;
+
+    int argmin = n - 1;//start with the whole node
+    double threshold;
+    double threshmin;
+    double P;
+    double Pmin = GINI(pos, tot);//initial impurity of node
+
+    //Tabulate impurity for each possible threshold split    
+    int i = 0;
+    while (i < n) {
+
+        threshold = data[first+i]->val;
+
+        while (i < n && (data[first+i]->val == threshold)) {
+            if (data[first+i]->label > 0)
+                lpos += data[first+i]->weight;
+
+            left += data[first+i]->weight;
+            ++i;
+        }
+
+        //Note that points on left = i, right = n-i
+
+        /*
+        If i=n, this is the whole node and the impurity is the initial
+        which is already done. i=n would cause error below.
+        */
+        if (i < n) {
+            P = GINI(lpos, left)*left/tot + GINI(pos-lpos, tot-left)*(tot-left)/tot;
+
+            //Save threshold/index with min impurity
+            if (P < Pmin) {
+                Pmin = P;
+                argmin = i - 1;
+                threshmin = threshold; 
+            }
+        }
+    }
+
+    //Save the minimum impurity to compare against other indices
+    *impurity = Pmin;
+    return argmin;
+}
 
 
 int WeightedBestSplit(double **data, int n, int first, int col, double pos, double tot, double *impurity) {

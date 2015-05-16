@@ -2,40 +2,38 @@
 #include <stdio.h>
 #include "tree.h"
 
-/* TODO: Merge and MergeSort, change sorting to swap pointers instead of
- * copying rows of data array
- *
+/*
  */
 
 
-void Sort(double **data, int first, int last, int a) {
+void Sort(double **data, int first, int last, int col) {
     
-    QuickSort(data, first, last, a);
+    QuickSort(data, first, last, col);
     return;
 }
 
 
-void MergeSort(double **data, int first, int last, int a) {
+void MergeSort(double **data, int first, int last, int col) {
 
     if (first >= last)
         return;
 
     int mid = (last-first)/2;
-    MergeSort(data, first, first+mid, a);
-    MergeSort(data, first+mid+1, last, a);
-    Merge(data, first, first+mid, last, a);
+    MergeSort(data, first, first+mid, col);
+    MergeSort(data, first+mid+1, last, col);
+    Merge(data, first, first+mid, last, col);
     return;
 }
 
 
-void Merge(double **data, int first, int mid, int last, int a) {
+void Merge(double **data, int first, int mid, int last, int col) {
     double **holder = malloc((last-first+1)*sizeof(double*));
     int i = first;
     int j = mid+1;
     int k = 0;
     
     while (i < mid+1 && j < last+1) {
-        if (data[i][a] <= data[j][a]) {
+        if (data[i][col] <= data[j][col]) {
             holder[k] = data[i];
             ++i;
         }
@@ -64,7 +62,7 @@ void Merge(double **data, int first, int mid, int last, int a) {
 }
 
 
-void QuickSort(double **data, int first, int last, int a) {
+void QuickSort(double **data, int first, int last, int col) {
 
 /* QuickSort and Partition implements quicksort and sorts a 2-dimensional
  * array on a particular index a between indices first and last. QuickSort places
@@ -74,7 +72,7 @@ void QuickSort(double **data, int first, int last, int a) {
  * data  = array containing sample data and labels to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
- * a     = index to sort on
+ * col   = column/index to sort on
  *
  */
 
@@ -84,15 +82,15 @@ void QuickSort(double **data, int first, int last, int a) {
     //Save the ends of the unsorted portions in vector.
     int ends[2];
 
-    Partition(data, first, last, a, ends);
-    QuickSort(data, first, ends[0], a);
-    QuickSort(data, ends[1], last, a);
+    Partition(data, first, last, col, ends);
+    QuickSort(data, first, ends[0], col);
+    QuickSort(data, ends[1], last, col);
     
     return;
 }
 
 
-void Partition(double **data, int first, int last, int a, int ends[]) {
+void Partition(double **data, int first, int last, int col, int ends[]) {
 
 /* Partition implements the partition function in quicksort. It groups
  * rows that match the pivot value together to minimize recursive calls
@@ -101,30 +99,29 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
  * data  = array containing sample data and labels to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
- * a     = index to sort on
+ * col   = index to sort on
  * ends  = vector with last index of lower unsorted block and first 
  *         index of higher unsorted block
  *
  */
 
-    double pivot = data[last][a];
+    double pivot = data[last][col];
     int i = first;
     int j = last-1;
     int k = last;
     int l;
-    int ind;
     double *holder;
     while (i < j) {
-        if (data[i][a] < pivot)
+        if (data[i][col] < pivot)
             ++i;
-        else if (data[i][a] > pivot) {
+        else if (data[i][col] > pivot) {
             //swap i with j, reduce j
             holder = data[j];
             data[j] = data[i];
             data[i] = holder;
             --j;
         }
-        //(data[i][a] == pivot)
+        //(data[i][col] == pivot)
         else { 
             //i goes to k-1, k-1 to j, and j to i, reduce j, reduce k
             holder = data[i];
@@ -137,11 +134,11 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
     }
 
     //Now i = j.
-    if (data[i][a] < pivot)
+    if (data[i][col] < pivot)
         ++i;
-    else if (data[i][a] > pivot)
+    else if (data[i][col] > pivot)
         --j;
-    //(data[i][a] == pivot)
+    //(data[i][col] == pivot)
     else {
         holder = data[i];
         data[i] = data[k-1];
@@ -164,4 +161,102 @@ void Partition(double **data, int first, int last, int a, int ends[]) {
 
     return;
 }
+
+
+void PodSort(Pod **data, int first, int last) {
+
+/* PodSort is simply QuickSort but for data stored in Pods.
+ *
+ * data  = array containing sample data, labels, weights in Pod form to be sorted
+ * first = first unsorted row that Sort may move
+ * last  = last unsorted row that Sort may move
+ * col   = column/index to sort on
+ *
+ */
+
+    if (first >= last)
+        return;
+
+    //Save the ends of the unsorted portions in vector.
+    int ends[2];
+
+    PodPartition(data, first, last, ends);
+    PodSort(data, first, ends[0]);
+    PodSort(data, ends[1], last);
+    
+    return;
+}
+
+
+void PodPartition(double **data, int first, int last, int ends[]) {
+
+/* PodPartition is simply Partition but for data stored in Pods.
+ *
+ * data  = array containing sample data, labels, weights in Pod form to be sorted
+ * first = first unsorted row that Sort may move
+ * last  = last unsorted row that Sort may move
+ * col   = index to sort on
+ * ends  = vector with last index of lower unsorted block and first 
+ *         index of higher unsorted block
+ *
+ */
+
+    double pivot = data[last]->val;
+    int i = first;
+    int j = last-1;
+    int k = last;
+    int l;
+    Pod *holder;
+    while (i < j) {
+        if (data[i]->val < pivot)
+            ++i;
+        else if (data[i]->val > pivot) {
+            //swap i with j, reduce j
+            holder = data[j];
+            data[j] = data[i];
+            data[i] = holder;
+            --j;
+        }
+        //(data[i][col] == pivot)
+        else { 
+            //i goes to k-1, k-1 to j, and j to i, reduce j, reduce k
+            holder = data[i];
+            data[i] = data[j];
+            data[j] = data[k-1];
+            data[k-1] = holder;
+            --j;
+            --k;
+        }
+    }
+
+    //Now i = j.
+    if (data[i]->val < pivot)
+        ++i;
+    else if (data[i]->val > pivot)
+        --j;
+    //(data[i][col] == pivot)
+    else {
+        holder = data[i];
+        data[i] = data[k-1];
+        data[k-1] = holder;
+        --j;
+        --k;
+    }
+
+    //Now i = j+1. j and below are less than pivot, i and above are greater.
+    //Last-k+1 entries match pivot. Swap to the dividing region, starting at i.
+    int matches = last-k+1;
+    for (l = 0; l < matches; ++l) {
+        holder = data[i+l];
+        data[i+l] = data[k+l];
+        data[k+l] = holder;
+    }
+    
+    ends[0] = i-1;
+    ends[1] = i + matches;
+
+    return;
+}
+
+
 
