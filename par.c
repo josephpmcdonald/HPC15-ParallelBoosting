@@ -12,38 +12,19 @@
  *
  */
 
-double ParallelSplit(double **data, int n, int first) {
+ 
+double ParallelSplit(Node *node, double **data, int n, int first, int level, int rank) {
 
-    int rank, p;
-    int tag = 21; //Timmy
+    int max_level = 2;
+    int min_points = 6;
+
+    node->left = NULL;
+    node->right = NULL;
+    node->index = -1;
+
+    //int tag = 21; //Timmy
     int i, j;
     
-    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
-    MPI_Comm_size(MPI_COMM_WORLD, &p);
-
-    int num_features = (D-1)/p;
-    if (rank < D % p)
-        num_features += 1;
-
-    //////COPYDATA/////////////////
-    ALLDATA = MNIST();
-
-    //Allocate pointers to pods 
-    Pod **data = malloc(n*sizeof(Pod*));
-    //Each process stores array of pods containing feature
-    for (i = 0; i < n; ++i)
-        data[i] = malloc(sizeof(Pod));
-
-    for (i = 0; i < n; ++i) {
-        data[i]->key = i; //key
-        data[i]->val = ALLDATA[i][rank]; //feature
-        data[i]->label = ALLDATA[i][D-1]; //label
-        data[i]->weight = 1./n; //weight
-    }
-    ///////////////////////////////
-
-    PodSort(data, 0, n-1, 1);
- 
     //Get initial counts for positive/negative labels
     int pos = 0;
     double pos_w = 0;//positive weight
@@ -59,6 +40,8 @@ double ParallelSplit(double **data, int n, int first) {
     int neg = n - pos;
     double neg_w = tot - pos_w;
 
+    PodSort(data, 0, n-1, 1);
+
     int row; //best row to split at for particular column/feature
     double threshold; //best threshold to split at for column/feature
     double impurity; //impurity for best split in feature/column
@@ -69,7 +52,7 @@ double ParallelSplit(double **data, int n, int first) {
     threshold = data[row]->val;
     //split_time += timestamp_diff_in_seconds(split_start, split_stop);
 
-    //AllReduce to find min impurity and corresponding process (MPI_MINLOC)
+    //Save impurity and process rank to structure
     struct {
         double P;
         int R;
@@ -78,41 +61,67 @@ double ParallelSplit(double **data, int n, int first) {
     in.P = impurity;
     in.R = rank;
     
+/* AllReduce to find min impurity and corresponding process (MPI_MINLOC), then
+ * receive best row and hence size of next left/right nodes
+ */
     MPI_Allreduce(in, out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+    MPI_Bcast(&row, 1, MPI_INT, out.R, MPI_COMM_WORLD);
+    printf("rank %d row %d\n", rank, row);
 
-    //If process has min, construct and broadcast list telling which node each point goes to
-    int *keys = malloc(n*sizeof(int));
-    char *dest = malloc(n*sizeof(char));
-    int split_after;
+    //If splitting doesn't improve purity (best split is at the end) stop
+    if (bestrow == first+n-1) {
+        //printf("no improvement\n");
+        return;
+    }
+
+    //For min processor, construct and broadcast list telling which node each point goes to
+    int *keys = malloc((row+1-first)*sizeof(int));
     if (rank == out.R) {
-        split_after = row;
-        for (i = first; i < row+1; ++i) {
-            keys[i] = data[i]->key;
-            dest[i] = 0;
+        for (i = 0; i < row+1-first; ++i)
+            keys[i] = data[first+i]->key;
+    }
+    MPI_Bcast(keys, n, MPI_INT, out.R, MPI_COMM_WORLD);
+
+    //Sort pod pointer list into ordered right node and left node
+    Pod **holder = malloc(n*sizeof(Pod*));
+    int l_ind = 0;
+    int r_ind = row+1-first;
+    for (i = first; i < first+n; ++i) {
+        for (j = 0; j < row+1-first; ++j) {
+            if (keys[j] == data[i]->index) {
+                holder[l_ind] = data[i];
+                l_ind++;
+                break;
+            }
         }
-        for (i = row+1; i < first+n; ++i) {
-            keys[i] = data[i]->key;
-            dest[i] = 1;
+        if (j == row+1-first) {
+            holder[r_ind] = data[i];
+            r_ind++;
         }
     }
 
-    MPI_Bcast(keys, n, MPI_INT, out.R, MPI_COMM_WORLD);
-    MPI_Bcast(dest, n, MPI_CHAR, out.R, MPI_COMM_WORLD);
-    MPI_Bcast(&split_after, 1, MPI_INT, out.R, MPI_COMM_WORLD);
-    //Sort pod pointer list into ordered right node and left node
-    Pod **newdata = malloc(n*sizeof(Pod*));
-    for (i = first; i < first+n; ++i) {
-        for (j = 0; j < n; ++j) {
-            if (data[i]->index == keys[j]) {
-                
-        
+    for (i = 0; i < n; ++i)
+        data[first+i] = holder[i];
+
+    free(keys);
+    free(holder);
+
+    //Create right and left children
+    Node *l = malloc(sizeof(Node));
+    Node *r = malloc(sizeof(Node));
+    l->parent = node;
+    r->parent = node;
+    l->right = NULL;
+    l->left = NULL;
+    r->right = NULL;
+    r->left = NULL;
     
-    //Create tree nodes according to split
+    node->left = l;
+    node->right = r;
     
     //Make MPI Barrier, then begin next round; check level, entropy, or purity to decide
     
     
-
 }
 
 
