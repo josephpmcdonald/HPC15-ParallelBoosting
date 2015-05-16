@@ -99,18 +99,6 @@ double AdaBoost(double **data, int n) {
     double elapsed = timestamp_diff_in_seconds(start, stop);
     printf("Elapsed time: %f seconds\n", elapsed);
 
-/*
-    double final_error = 0;
-    for (i = 0; i < n; ++i) {
-        sum = 0.;
-        for (t = 0; t < T; ++t)
-            sum += alpha[t]*WeakLearner(H[t], data[i]);
-        
-        if (data[i][D-1]*sum < 0)
-            final_error += 1./n;
-    }
-*/
-
     free(error);
     free(alpha);
     for (t = 0; t < T; ++t)
@@ -124,14 +112,90 @@ double AdaBoost(double **data, int n) {
 
 int main(int argc, char *argv[]) { 
 
-
     double **data17 = MNIST17();
+    int n = 13007;
 
-    //To check appearance of data17
+    //Inserted AdaBoost in main below
+    //AdaBoost(data17, n);
+    timestamp_type start, stop;
     int i;
-    int j;
-    int k;
+    int t;
+    int s;
+    int T = 50;
+    double e;
+    double Z;
+    double *error = malloc(T*sizeof(double));
+    double *alpha = malloc(T*sizeof(double));
+    double *running_error = malloc(T*sizeof(double));
+    double sum;
+    Node **H = malloc(T*sizeof(Node*));
+    for (t = 0; t < T; ++t)
+        H[t] = malloc(sizeof(Node));
+
+    printf("Starting AdaBoost\n");
+    get_timestamp(&start);
+    for (i = 0; i < n; ++i) 
+        data[i][D] = 1./n;
+
+    for (t = 0; t < T; ++t) {
+        printf("t = %d: Building tree\n", t);
+        BuildTree(H[t], data, n);
+        e = Error(H[t], data, n);
+        error[t] = e;
+        alpha[t] = 0.5*log((1 - e)/e);
+        Z = 2*sqrt(e*(1 - e));
+        for (i = 0; i < n; ++i){
+            data[i][D] = data[i][D]*exp(-alpha[t]*WeakLearner(H[t], data[i])*data[i][D-1])/Z;
+        }
+
+        running_error[t] = 0;
+        for (i = 0; i < n; ++i) {
+            sum = 0;
+            for (s = 0; s <= t; ++s)
+                sum += alpha[s]*WeakLearner(H[s], data[i]);
+
+            if (data[i][D-1]*sum < 0)
+                 running_error[t] += 1./n;
+        }
+
+        printf("error = %f\n", running_error[t]);
+    }
+
+    get_timestamp(&stop);
+    double elapsed = timestamp_diff_in_seconds(start, stop);
+    printf("Elapsed time: %f seconds\n", elapsed);
+
+    free(error);
+    free(alpha);
+    for (t = 0; t < T; ++t)
+        TreeFree(H[t]);
+    free(H);
+    free(running_error);
+
+    for (i = 0; i < n; ++i)
+        free(data17[i]);
+    free(data17);
+
+
+    return 0;
+}
+
+
+
 /*
+    double final_error = 0;
+    for (i = 0; i < n; ++i) {
+        sum = 0.;
+        for (t = 0; t < T; ++t)
+            sum += alpha[t]*WeakLearner(H[t], data[i]);
+        
+        if (data[i][D-1]*sum < 0)
+            final_error += 1./n;
+    }
+*/
+
+/*
+    //To check the appearance of data17
     for (i = 0; i < 10; ++i)
         printf("data17[%d]=%f\n", i, data17[i][D-1]);
 
@@ -145,17 +209,11 @@ int main(int argc, char *argv[]) {
 
         printf("\n");
     }
-*/
-
-    AdaBoost(data17, 13007);
-
-    for (i = 0; i < 13007; ++i)
-        free(data17[i]);
-    free(data17);
 
 
 
-/*
+
+
     double DATA[20][D+1] = {{3, 6, 1, 0.05},
         {4, 1, -1, 0.05},
         {3, 1, -1, 0.05},
@@ -213,10 +271,5 @@ int main(int argc, char *argv[]) {
 
     TreeFree(root);
 */
-
-    return 0;
-}
-
-
 
 
