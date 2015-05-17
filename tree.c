@@ -12,51 +12,55 @@
  */
 
 
-int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurity) {
+int BestSplit(double **data, int n, int first, int col, int pos, double *impurity) {
 
-/* Pod version of WeightedBestSplit
+/* Returns the row/index of the table with the least impurity after splitting
+ * for fixed column/feature col. Partition rows up to and including that index
+ * from everything afterwards.
  *
- * data     = array of data sorted by value in Pod form 
- * n        = length of table (# of rows/samples)
- * first    = first index in the node
- * pos      = weight of positive labels
- * tot      = total weight of all labels
- * impurity = pointer to save impurity after split
+ * data = array of data sorted on index a 
+ * n    = length of table (# of rows/samples)
+ * col    = sorting/splitting feature/column of data
+ * pos  = number of positive labels
+ *
+ * Thus:
+ * (pos - lpos) = right pos count
+ * i = total left count
+ * n - i = total right count
+ * 
  *
  */
 
-    double neg = tot - pos;
-    double lpos = 0;
-    double left = 0;
+    int neg = n - pos;
+    int lpos = 0;
 
-    int argmin = first + n - 1;//start with the whole node
+    int argmin = n - 1;//start with the whole node
     double threshold;
     double threshmin;
     double P;
-    double Pmin = GINI(pos, tot);//initial impurity of node
+    double Pmin = GINI(pos, n);//initial impurity of node
 
     //Tabulate impurity for each possible threshold split    
-    int i = first;
-    while (i < first+n) {
+    int i = 0;
+    while (i < n) {
 
-        threshold = data[i]->val;
+        threshold = data[first+i][col];
 
-        while ((i < first+n) && (data[i]->val == threshold)) {
-            if (data[i]->label > 0)
-                lpos += data[i]->weight;
+        while (i < n && (data[first+i][col] == threshold)) {
+            if (data[first+i][D-1] > 0)
+                lpos += 1;
 
-            left += data[i]->weight;
             ++i;
         }
 
         //Note that points on left = i, right = n-i
 
         /*
-        If i=first+n, this is the whole node and the impurity is the initial
-        which is already done. i=first+n would cause error below.
+        If i=n, this is the whole node and the impurity is the initial
+        which is already done. i=n would cause error below.
         */
-        if (i < first+n) {
-            P = GINI(lpos, left)*left/tot + GINI(pos-lpos, tot-left)*(tot-left)/tot;
+        if (i < n) {
+            P = GINI(lpos, i)*i/n + GINI(pos-lpos, n-i)*(n-i)/n;
 
             //Save threshold/index with min impurity
             if (P < Pmin) {
@@ -143,55 +147,51 @@ int WeightedBestSplit(double **data, int n, int first, int col, double pos, doub
 }
 
 
-int BestSplit(double **data, int n, int first, int col, int pos, double *impurity) {
+int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurity) {
 
-/* Returns the row/index of the table with the least impurity after splitting
- * for fixed column/feature col. Partition rows up to and including that index
- * from everything afterwards.
+/* Pod version of WeightedBestSplit
  *
- * data = array of data sorted on index a 
- * n    = length of table (# of rows/samples)
- * col    = sorting/splitting feature/column of data
- * pos  = number of positive labels
- *
- * Thus:
- * (pos - lpos) = right pos count
- * i = total left count
- * n - i = total right count
- * 
+ * data     = array of data sorted by value in Pod form 
+ * n        = length of table (# of rows/samples)
+ * first    = first index in the node
+ * pos      = weight of positive labels
+ * tot      = total weight of all labels
+ * impurity = pointer to save impurity after split
  *
  */
 
-    int neg = n - pos;
-    int lpos = 0;
+    double neg = tot - pos;
+    double lpos = 0;
+    double left = 0;
 
-    int argmin = n - 1;//start with the whole node
+    int argmin = first + n - 1;//start with the whole node
     double threshold;
     double threshmin;
     double P;
-    double Pmin = GINI(pos, n);//initial impurity of node
+    double Pmin = GINI(pos, tot);//initial impurity of node
 
     //Tabulate impurity for each possible threshold split    
-    int i = 0;
-    while (i < n) {
+    int i = first;
+    while (i < first+n) {
 
-        threshold = data[first+i][col];
+        threshold = data[i]->val;
 
-        while (i < n && (data[first+i][col] == threshold)) {
-            if (data[first+i][D-1] > 0)
-                lpos += 1;
+        while ((i < first+n) && (data[i]->val == threshold)) {
+            if (data[i]->label > 0)
+                lpos += data[i]->weight;
 
+            left += data[i]->weight;
             ++i;
         }
 
         //Note that points on left = i, right = n-i
 
         /*
-        If i=n, this is the whole node and the impurity is the initial
-        which is already done. i=n would cause error below.
+        If i=first+n, this is the whole node and the impurity is the initial
+        which is already done. i=first+n would cause error below.
         */
-        if (i < n) {
-            P = GINI(lpos, i)*i/n + GINI(pos-lpos, n-i)*(n-i)/n;
+        if (i < first+n) {
+            P = GINI(lpos, left)*left/tot + GINI(pos-lpos, tot-left)*(tot-left)/tot;
 
             //Save threshold/index with min impurity
             if (P < Pmin) {
@@ -354,6 +354,141 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
 
     return;
 }
+
+ 
+double ParallelSplit(Node *node, double **data, int n, int first, int level, int rank) {
+
+/* par.c contains functions that will be used for the parallelized decision
+ * tree construction. We use MPI and design it so that each processor holds
+ * the data for one feature plus the labels and a pointer to the sample which
+ * can be used as a key. 
+ * 
+ * Each processor sorts its own data once in the beginning, 
+ *
+ */
+
+    int max_level = 2;
+    int min_points = 6;
+
+    node->left = NULL;
+    node->right = NULL;
+    node->index = -1;
+
+    //int tag = 21; //Timmy
+    int i, j;
+    int last = first+n-1;
+ 
+    //Get initial counts for positive/negative labels
+    int pos = 0;
+    double pos_w = 0;//positive weight
+    double tot = 0;//total weight
+    for (i = first; i < first+n; ++i) {
+        tot += data[i]->weight;
+
+        if (data[i]->label > 0){
+            pos += 1;
+            pos_w += data[i]->weight;
+        }
+    }
+    int neg = n - pos;
+    double neg_w = tot - pos_w;
+
+    PodSort(data, first, last);
+
+    int row; //best row to split at for column/feature of this process
+    double threshold; //best threshold to split at for column/feature
+    double impurity; //impurity for best split in feature/column
+
+    //get_timestamp(&split_start);
+    row = PodWBS(data, n, first, pos_w, tot, &impurity);
+    //get_timestamp(&split_stop);
+    threshold = data[row]->val;
+    //split_time += timestamp_diff_in_seconds(split_start, split_stop);
+
+    //Save impurity and process rank to structure
+    struct {
+        double P; //impurity
+        int R; //rank
+    } in, out;
+
+    in.P = impurity;
+    in.R = rank;
+    
+/* AllReduce to find min impurity and corresponding process (MPI_MINLOC), then
+ * receive best row and hence size of next left/right nodes
+ */
+    MPI_Allreduce(in, out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+    MPI_Bcast(&row, 1, MPI_INT, out.R, MPI_COMM_WORLD);
+    printf("rank %d row %d\n", rank, row);
+
+    int first_r = row+1;
+    int n_l = row+1-first; //first_r-first
+    int n_r = n - n_l;
+
+    //If splitting doesn't improve purity (best split is at the end) stop
+    if (row == last) {
+        //printf("no improvement\n");
+        return;
+    }
+
+    //For min processor, construct and broadcast list telling which node each point goes to
+    int *keys = malloc((n_l)*sizeof(int));
+    if (rank == out.R) {
+        for (i = 0; i < n_l; ++i)
+            keys[i] = data[first+i]->key;
+    }
+    MPI_Bcast(keys, n, MPI_INT, out.R, MPI_COMM_WORLD);
+
+    //Sort pod pointer list into ordered right node and left node
+    Pod **holder = malloc(n*sizeof(Pod*));
+    int l_ind = 0;
+    int r_ind = n_l;
+    for (i = first; i < last+1; ++i) {
+        for (j = 0; j < n_l; ++j) {
+            if (keys[j] == data[i]->index) {
+                holder[l_ind] = data[i];
+                l_ind++;
+                break;
+            }
+        }
+        if (j == n_l) {
+            holder[r_ind] = data[i];
+            r_ind++;
+        }
+    }
+
+    for (i = 0; i < n; ++i)
+        data[first+i] = holder[i];
+
+    free(keys);
+    free(holder);
+
+    //Create right and left children
+    Node *l = malloc(sizeof(Node));
+    Node *r = malloc(sizeof(Node));
+    l->parent = node;
+    r->parent = node;
+    l->right = NULL;
+    l->left = NULL;
+    r->right = NULL;
+    r->left = NULL;
+    
+    node->left = l;
+    node->right = r;
+    
+    //Make MPI Barrier, then begin next round; check level, entropy, or purity to decide
+
+    //printf("LEFT\n");
+    ParallelSplit(l, data, n_l, first, level+1, rank);
+    //printf("RIGHT\n");
+    ParallelSplit(r, data, n_r, first_r, level+1, rank);
+
+    return;
+
+}
+
+
+
 
 
 void BuildTree(Node *root, double **data, int n) {
