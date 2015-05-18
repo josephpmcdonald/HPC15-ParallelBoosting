@@ -25,6 +25,13 @@ struct DataPod {
 
 typedef struct DataPod Pod;
 
+struct HashEntry {
+    struct HashEntry *next;
+    int key;
+    char loc;
+};
+
+typedef struct HashEntry Entry;
 
 //data.c
 double **ParMNIST17(int *feature_list, int num_features);

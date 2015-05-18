@@ -461,11 +461,26 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     MPI_Bcast(&best_feat, 1, MPI_INT, out.R, MPI_COMM_WORLD);
     MPI_Bcast(&threshold, 1, MPI_DOUBLE, out.R, MPI_COMM_WORLD);
 
+
     int first_r = row+1;
     int n_l = row+1-first; //first_r-first
     int n_r = n - n_l;
 
-    //For min processor, construct and broadcast list telling which node each point goes to
+    //For min processor, construct and broadcast list telling which node each point goes to using Hash Table
+    int p;
+    int index;
+    Entry **Hash;
+    Hash = malloc(p*sizeof(Entry*));
+    Entry *current;
+    for (j = 0; j < p; ++j)
+        Hash[j] = NULL;
+    for (i = 0; i < n; ++i) {
+        index = data[best_feat][first+i]->key % p;
+        current = Hash[index];
+        while(current)
+            current = current->next;
+    }
+
     int *keys = malloc((n_l)*sizeof(int));
     if (rank == out.R) {
         for (i = 0; i < n_l; ++i)
@@ -477,6 +492,8 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     Pod **holder = malloc(n*sizeof(Pod*));
     int l_ind;
     int r_ind;
+    printf("start rank %d here\n", rank);
+
     for (feat = 0; feat < num_features; feat++) {
         l_ind = 0;
         r_ind = n_l;
@@ -493,10 +510,12 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
                 r_ind++;
             }
         }
+    
+        for (i = 0; i < n; ++i)
+            data[feat][first+i] = holder[i];
     }
 
-    for (i = 0; i < n; ++i)
-        data[feat][first+i] = holder[i];
+    printf("stop rank %d here\n", rank);
 
     free(keys);
     free(holder);
