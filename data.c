@@ -1,6 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include "tree.h"
+#include "mpi.h"
 
 /* Functions for data IO, both retrieval and allocation. We choose to store
  * data in arrays of doubles. If D represents the number of features for a
@@ -31,17 +32,81 @@
     }
 */
 
-double **ParMNIST17() {
+double **ParMNIST17(int *feature_list, int num_features) {
+
+    int rank;
+    MPI_Comm_rank(MPI_COMM_WORLD, &rank);
+    int i;
+    int j;
+    int n = 13007;
+    FILE *labels;
+    labels = fopen("train-labels.idx1-ubyte", "rb");
+    FILE *images;
+    images = fopen("train-images.idx3-ubyte", "rb");
+
+    //Point to beginning of labels and images (after header info)
+    fseek(labels, 8, SEEK_SET);
+    fseek(images, 16, SEEK_SET);
+    int count17 = 0;
+    unsigned char label;
+    unsigned char pixel;
+
+    //Allocate pointers and array for each observation
+    double **data = malloc(n*sizeof(double*));
+
+    for (i = 0; i < n; ++i)
+        data[i] = malloc((num_features+1)*sizeof(double));
+
+    //Count the occurrences of 1/7, and record image and label
+    for (i = 0; i < 60000; ++i) {
+
+        fread(&label, 1, 1, labels);
+
+        if (label == 1) {
+            //jump to correct byte/pixel of pixel file
+            fseek(images, 16+28*28*i+feature_list[0], SEEK_SET);
+            for (j = 0; j < num_features; ++j) {
+                fread(&pixel, 1, 1, images);
+                data[count17][j] = (double) pixel;
+            }
+            //record label at end of entry
+            data[count17][num_features] = 1.;
+
+            ++count17;
+        }
+        else if (label == 7) {
+            //jump to correct line of pixel file
+            fseek(images, 16+28*28*i+feature_list[0], SEEK_SET);
+            for (j = 0; j < num_features; ++j) {
+                fread(&pixel, 1, 1, images);
+                data[count17][j] = (double) pixel;
+            }
+            //record label at end of entry
+            data[count17][num_features] = -1.;
+
+            ++count17;
+        }
+    }
+
+    printf("\n1/7:%d\n", count17);
+
+    //long lsize;
+    //fseek(images, 0, SEEK_END);
+    //lsize=ftell(images);
+    //printf("The file is %d bytes\n", lsize);
+
+    fclose(labels);
+    fclose(images);
 
     return data;
 }
+
 
 double **MNIST17() {
 
     int i;
     int j;
     int n = 13007;
-    unsigned char c;
     FILE *labels;
     labels = fopen("train-labels.idx1-ubyte", "rb");
     FILE *images;
@@ -110,7 +175,6 @@ double **MNIST49() {
     int i;
     int j;
     int n = 11791;
-    unsigned char c;
     FILE *labels;
     labels = fopen("train-labels.idx1-ubyte", "rb");
     FILE *images;

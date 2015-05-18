@@ -31,7 +31,6 @@ int BestSplit(double **data, int n, int first, int col, int pos, double *impurit
  *
  */
 
-    int neg = n - pos;
     int lpos = 0;
 
     int argmin = n - 1;//start with the whole node
@@ -99,7 +98,6 @@ int WeightedBestSplit(double **data, int n, int first, int col, double pos, doub
  *
  */
 
-    double neg = tot - pos;
     double lpos = 0;
     double left = 0;
 
@@ -147,7 +145,7 @@ int WeightedBestSplit(double **data, int n, int first, int col, double pos, doub
 }
 
 
-int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurity) {
+int PodWBS(Pod **data, int n, int first, int feat, double pos, double tot, double *impurity) {
 
 /* Pod version of WeightedBestSplit
  *
@@ -160,7 +158,6 @@ int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurit
  *
  */
 
-    double neg = tot - pos;
     double lpos = 0;
     double left = 0;
 
@@ -174,9 +171,9 @@ int PodWBS(Pod **data, int n, int first, double pos, double tot, double *impurit
     int i = first;
     while (i < first+n) {
 
-        threshold = data[i]->val;
+        threshold = data[i]->val[feat];
 
-        while ((i < first+n) && (data[i]->val == threshold)) {
+        while ((i < first+n) && (data[i]->val[feat] == threshold)) {
             if (data[i]->label > 0)
                 lpos += data[i]->weight;
 
@@ -356,14 +353,14 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
 }
 
  
-double ParallelSplit(Node *node, double **data, int n, int first, int level, int rank) {
+void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int rank, int num_features) {
 
-/* par.c contains functions that will be used for the parallelized decision
- * tree construction. We use MPI and design it so that each processor holds
- * the data for one feature plus the labels and a pointer to the sample which
- * can be used as a key. 
+/* ParallelSplit copies SplitNode but enacts parallelized decision tree
+ * construction. We use MPI and design it so that each processor holds the
+ * data for one feature plus the labels and a pointer to the sample ("pod")
+ * with index to be used as a key.
  * 
- * Each processor sorts its own data once in the beginning, 
+ * Each processor has it's data pre-sorted after loading. 
  *
  */
 
@@ -383,26 +380,61 @@ double ParallelSplit(Node *node, double **data, int n, int first, int level, int
     double pos_w = 0;//positive weight
     double tot = 0;//total weight
     for (i = first; i < first+n; ++i) {
-        tot += data[i]->weight;
+        tot += data[0][i]->weight;
 
-        if (data[i]->label > 0){
+        if (data[0][i]->label > 0){
             pos += 1;
-            pos_w += data[i]->weight;
+            pos_w += data[0][i]->weight;
         }
     }
     int neg = n - pos;
     double neg_w = tot - pos_w;
 
-    PodSort(data, first, last);
+    //Declare class for node in case of pruning on child
+    if (pos_w > neg_w)
+        node->label = 1;
+    else if (pos_w < neg_w)
+        node->label = -1;
+    else if (node->parent)
+        node->label = node->parent->label;
+    else {
+        //printf("Root node is evenly balanced.\n");
+        node->label = 0;
+    }
 
-    int row; //best row to split at for column/feature of this process
-    double threshold; //best threshold to split at for column/feature
-    double impurity; //impurity for best split in feature/column
+    //If branch is small or almost pure, make leaf
+    if (n < min_points) {
+        //printf("small branch: %d points\n", n, level);
+        return;
+    }
+    else if (level == max_level) {
+        //printf("leaf node: level = max\n");
+        return;
+    }
+    else if (pos == 0 || neg == 0) {
+        //printf("pure node\n");
+        return;
+    }
+
+    int feat_row;//best row to split at for column/feature of this process
+    int row = last;//best row for best feature 
+    int best_feat = -1;//best feature to split on, so other processes save in tree
+    double threshold;//best threshold to split at for feature
+    double impurity;//impurity for best split in feature
+    double Pmin = GINI(pos_w, tot);//minimum impurity seen so far
 
     //get_timestamp(&split_start);
-    row = PodWBS(data, n, first, pos_w, tot, &impurity);
+    int feat;
+    for (feat = 0; feat < num_features; ++feat) {
+        feat_row = PodWBS(data[feat], n, first, feat, pos_w, tot, &impurity);
+        if (impurity < Pmin) {
+            row = feat_row;
+            threshold = data[feat][row]->val[feat];
+            Pmin = impurity;
+            best_feat = feat;
+        }
+    }
     //get_timestamp(&split_stop);
-    threshold = data[row]->val;
     //split_time += timestamp_diff_in_seconds(split_start, split_stop);
 
     //Save impurity and process rank to structure
@@ -411,54 +443,60 @@ double ParallelSplit(Node *node, double **data, int n, int first, int level, int
         int R; //rank
     } in, out;
 
-    in.P = impurity;
+    in.P = Pmin;
     in.R = rank;
     
 /* AllReduce to find min impurity and corresponding process (MPI_MINLOC), then
  * receive best row and hence size of next left/right nodes
  */
-    MPI_Allreduce(in, out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
+    MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
     MPI_Bcast(&row, 1, MPI_INT, out.R, MPI_COMM_WORLD);
     printf("rank %d row %d\n", rank, row);
-
-    int first_r = row+1;
-    int n_l = row+1-first; //first_r-first
-    int n_r = n - n_l;
-
     //If splitting doesn't improve purity (best split is at the end) stop
     if (row == last) {
         //printf("no improvement\n");
         return;
     }
 
+    MPI_Bcast(&best_feat, 1, MPI_INT, out.R, MPI_COMM_WORLD);
+    MPI_Bcast(&threshold, 1, MPI_DOUBLE, out.R, MPI_COMM_WORLD);
+
+    int first_r = row+1;
+    int n_l = row+1-first; //first_r-first
+    int n_r = n - n_l;
+
     //For min processor, construct and broadcast list telling which node each point goes to
     int *keys = malloc((n_l)*sizeof(int));
     if (rank == out.R) {
         for (i = 0; i < n_l; ++i)
-            keys[i] = data[first+i]->key;
+            keys[i] = data[best_feat][first+i]->key;
     }
-    MPI_Bcast(keys, n, MPI_INT, out.R, MPI_COMM_WORLD);
+    MPI_Bcast(keys, n_l, MPI_INT, out.R, MPI_COMM_WORLD);
 
     //Sort pod pointer list into ordered right node and left node
     Pod **holder = malloc(n*sizeof(Pod*));
-    int l_ind = 0;
-    int r_ind = n_l;
-    for (i = first; i < last+1; ++i) {
-        for (j = 0; j < n_l; ++j) {
-            if (keys[j] == data[i]->index) {
-                holder[l_ind] = data[i];
-                l_ind++;
-                break;
+    int l_ind;
+    int r_ind;
+    for (feat = 0; feat < num_features; feat++) {
+        l_ind = 0;
+        r_ind = n_l;
+        for (i = first; i < last+1; ++i) {
+            for (j = 0; j < n_l; ++j) {
+                if (keys[j] == data[feat][i]->key) {
+                    holder[l_ind] = data[feat][i];
+                    l_ind++;
+                    break;
+                }
             }
-        }
-        if (j == n_l) {
-            holder[r_ind] = data[i];
-            r_ind++;
+            if (j == n_l) {
+                holder[r_ind] = data[feat][i];
+                r_ind++;
+            }
         }
     }
 
     for (i = 0; i < n; ++i)
-        data[first+i] = holder[i];
+        data[feat][first+i] = holder[i];
 
     free(keys);
     free(holder);
@@ -479,16 +517,12 @@ double ParallelSplit(Node *node, double **data, int n, int first, int level, int
     //Make MPI Barrier, then begin next round; check level, entropy, or purity to decide
 
     //printf("LEFT\n");
-    ParallelSplit(l, data, n_l, first, level+1, rank);
+    ParallelSplit(l, data, n_l, first, level+1, rank, num_features);
     //printf("RIGHT\n");
-    ParallelSplit(r, data, n_r, first_r, level+1, rank);
+    ParallelSplit(r, data, n_r, first_r, level+1, rank, num_features);
 
     return;
-
 }
-
-
-
 
 
 void BuildTree(Node *root, double **data, int n) {

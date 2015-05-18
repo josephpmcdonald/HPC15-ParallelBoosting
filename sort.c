@@ -163,14 +163,14 @@ void Partition(double **data, int first, int last, int col, int ends[]) {
 }
 
 
-void PodSort(Pod **data, int first, int last) {
+void PodSort(Pod **data, int first, int last, int feat) {
 
 /* PodSort is simply QuickSort but for data stored in Pods.
  *
  * data  = array containing sample data, labels, weights in Pod form to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
- * col   = column/index to sort on
+ * feat  =  feature/index to sort on
  *
  */
 
@@ -180,37 +180,37 @@ void PodSort(Pod **data, int first, int last) {
     //Save the ends of the unsorted portions in vector.
     int ends[2];
 
-    PodPartition(data, first, last, ends);
-    PodSort(data, first, ends[0]);
-    PodSort(data, ends[1], last);
+    PodPartition(data, first, last, feat, ends);
+    PodSort(data, first, ends[0], feat);
+    PodSort(data, ends[1], last, feat);
     
     return;
 }
 
 
-void PodPartition(double **data, int first, int last, int ends[]) {
+void PodPartition(Pod **data, int first, int last, int feat, int ends[]) {
 
 /* PodPartition is simply Partition but for data stored in Pods.
  *
  * data  = array containing sample data, labels, weights in Pod form to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
- * col   = index to sort on
+ * feat  =  feature/index to sort on
  * ends  = vector with last index of lower unsorted block and first 
  *         index of higher unsorted block
  *
  */
 
-    double pivot = data[last]->val;
+    double pivot = data[last]->val[feat];
     int i = first;
     int j = last-1;
     int k = last;
     int l;
     Pod *holder;
     while (i < j) {
-        if (data[i]->val < pivot)
+        if (data[i]->val[feat] < pivot)
             ++i;
-        else if (data[i]->val > pivot) {
+        else if (data[i]->val[feat] > pivot) {
             //swap i with j, reduce j
             holder = data[j];
             data[j] = data[i];
@@ -230,9 +230,9 @@ void PodPartition(double **data, int first, int last, int ends[]) {
     }
 
     //Now i = j.
-    if (data[i]->val < pivot)
+    if (data[i]->val[feat] < pivot)
         ++i;
-    else if (data[i]->val > pivot)
+    else if (data[i]->val[feat] > pivot)
         --j;
     //(data[i][col] == pivot)
     else {

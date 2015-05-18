@@ -112,7 +112,7 @@ double AdaBoost(double **data, int n) {
 
 int main(int argc, char *argv[]) { 
 
-    double **data17 = MNIST17();
+    double **data = MNIST17();
     int n = 13007;
 
     //Inserted AdaBoost in main below
@@ -173,8 +173,8 @@ int main(int argc, char *argv[]) {
     free(running_error);
 
     for (i = 0; i < n; ++i)
-        free(data17[i]);
-    free(data17);
+        free(data[i]);
+    free(data);
 
 
     return 0;
