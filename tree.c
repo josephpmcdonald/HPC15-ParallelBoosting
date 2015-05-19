@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "tree.h"
+#include "header.h"
 #include "util.h"
 #include "mpi.h"
 
@@ -327,6 +327,8 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     node->index = bestcol;
     node->threshold = bestthresh;
 
+    printf("Best feature: %d, Best thresh: %f, Impurity: %f\n", node->index, node->threshold, Pmin);
+
     //Create right and left children
     Node *l = malloc(sizeof(Node));
     Node *r = malloc(sizeof(Node));
@@ -372,17 +374,24 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     node->index = -1;
 
     //int tag = 21; //Timmy
-    int i, j;
+    int i;
+    int feat;
     int last = first+n-1;
- 
+
+    if(rank == 1 && level == 1)
+        printf("test: %p\n", data[0][1523]);
     //Get initial counts for positive/negative labels
     int pos = 0;
     double pos_w = 0;//positive weight
     double tot = 0;//total weight
-    for (i = first; i < first+n; ++i) {
+
+    printf("RANK %d\n", rank);
+    for (i = first; i < last+1; ++i) {
+        if(rank == 1 && level == 1)
+           printf("%d    ", i); 
         tot += data[0][i]->weight;
 
-        if (data[0][i]->label > 0){
+        if (data[0][i]->label > 0) {
             pos += 1;
             pos_w += data[0][i]->weight;
         }
@@ -416,6 +425,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
         return;
     }
 
+
     int feat_row;//best row to split at for column/feature of this process
     int row = last;//best row for best feature 
     int best_feat = -1;//best feature to split on, so other processes save in tree
@@ -424,7 +434,6 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     double Pmin = GINI(pos_w, tot);//minimum impurity seen so far
 
     //get_timestamp(&split_start);
-    int feat;
     for (feat = 0; feat < num_features; ++feat) {
         feat_row = PodWBS(data[feat], n, first, feat, pos_w, tot, &impurity);
         if (impurity < Pmin) {
@@ -434,6 +443,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
             best_feat = feat;
         }
     }
+
     //get_timestamp(&split_stop);
     //split_time += timestamp_diff_in_seconds(split_start, split_stop);
 
@@ -445,13 +455,13 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
 
     in.P = Pmin;
     in.R = rank;
-    
+
 /* AllReduce to find min impurity and corresponding process (MPI_MINLOC), then
  * receive best row and hence size of next left/right nodes
  */
     MPI_Allreduce(&in, &out, 1, MPI_DOUBLE_INT, MPI_MINLOC, MPI_COMM_WORLD);
     MPI_Bcast(&row, 1, MPI_INT, out.R, MPI_COMM_WORLD);
-    printf("rank %d row %d\n", rank, row);
+    //printf("rank %d row %d\n", rank, row);
     //If splitting doesn't improve purity (best split is at the end) stop
     if (row == last) {
         //printf("no improvement\n");
@@ -461,65 +471,103 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     MPI_Bcast(&best_feat, 1, MPI_INT, out.R, MPI_COMM_WORLD);
     MPI_Bcast(&threshold, 1, MPI_DOUBLE, out.R, MPI_COMM_WORLD);
 
+/* 
+/////////////////////////////////////////////////////
+    printf("CHECK:%f \n", data[42][12696]->val[42]);
+    for (feat = 0; feat < num_features; feat++) {
+        for (i = first; i < last; ++i) {
+            if (data[feat][i]->val[feat] > data[feat][i+1]->val[feat]) {
+                printf("PRESORT FAILED, i = %d, feat = %d, first = %d", i, feat, first);
+                printf("%f then %f\n", data[feat][i]->val[feat], data[feat][i+1]->val[feat]);
+                abort();
+            }
+        }
+    }
+    printf("Correctly Sorted.\n");
+////////////////////////////////////////////////////////
+*/
 
     int first_r = row+1;
     int n_l = row+1-first; //first_r-first
     int n_r = n - n_l;
 
-    //For min processor, construct and broadcast list telling which node each point goes to using Hash Table
-    int p;
-    int index;
-    Entry **Hash;
-    Hash = malloc(p*sizeof(Entry*));
-    Entry *current;
-    for (j = 0; j < p; ++j)
-        Hash[j] = NULL;
-    for (i = 0; i < n; ++i) {
-        index = data[best_feat][first+i]->key % p;
-        current = Hash[index];
-        while(current)
-            current = current->next;
+    //For min processor, construct and broadcast list telling which node each point goes to
+    int *keys = malloc(N*sizeof(int));
+    for (i = 0; i < N; ++i)
+        keys[i] = -1;
+    if (rank == out.R) {
+        for (i = first; i < row+1; ++i)
+            keys[data[best_feat][i]->key] = 1;//left
+        for (i = row+1; i < last+1; ++i)
+            keys[data[best_feat][i]->key] = 0;//right
     }
 
-    int *keys = malloc((n_l)*sizeof(int));
-    if (rank == out.R) {
-        for (i = 0; i < n_l; ++i)
-            keys[i] = data[best_feat][first+i]->key;
-    }
-    MPI_Bcast(keys, n_l, MPI_INT, out.R, MPI_COMM_WORLD);
+    MPI_Bcast(keys, N, MPI_CHAR, out.R, MPI_COMM_WORLD);
 
     //Sort pod pointer list into ordered right node and left node
     Pod **holder = malloc(n*sizeof(Pod*));
     int l_ind;
     int r_ind;
-    printf("start rank %d here\n", rank);
-
     for (feat = 0; feat < num_features; feat++) {
         l_ind = 0;
         r_ind = n_l;
         for (i = first; i < last+1; ++i) {
-            for (j = 0; j < n_l; ++j) {
-                if (keys[j] == data[feat][i]->key) {
-                    holder[l_ind] = data[feat][i];
-                    l_ind++;
-                    break;
-                }
+            if (keys[data[feat][i]->key] == 1) {
+                holder[l_ind] = data[feat][i];
+                l_ind++;
             }
-            if (j == n_l) {
+            else if (keys[data[feat][i]->key] == 0) {
                 holder[r_ind] = data[feat][i];
                 r_ind++;
             }
         }
-    
+
         for (i = 0; i < n; ++i)
             data[feat][first+i] = holder[i];
     }
 
-    printf("stop rank %d here\n", rank);
+/*
+/////////////////////////////////////////////////////
+    for (feat = 0; feat < num_features; feat++) {
+        for (i = first; i < row; ++i) {
+            if (data[feat][i]->val[feat] > data[feat][i+1]->val[feat]) {
+                printf("POST SORT FAILED, i = %d, feat = %d, first = %d", i, feat, first);
+                printf("%f then %f\n", data[feat][i]->val[feat], data[feat][i+1]->val[feat]);
+                abort();
+            }
+        }
+        for (i = row+1; i < last; ++i) {
+            if (data[feat][i]->val[feat] > data[feat][i+1]->val[feat]) {
+                printf("POST SORT FAILED, i = %d, feat = %d, first = %d", i, feat, first);
+                printf("%f then %f\n", data[feat][i]->val[feat], data[feat][i+1]->val[feat]);
+                abort();
+            }
+        }
+    }
+    printf("Correctly POST Sorted\n");
+    printf("CHECK:%f \n", data[42][12696]->val[42]);
+    printf("CHECK:%f \n", data[42][12697]->val[42]);
+////////////////////////////////////////////////////////
+*/
 
     free(keys);
     free(holder);
 
+    int p;
+    MPI_Comm_size(MPI_COMM_WORLD, &p);
+    int remainder = (D-1)%p;
+    int fpp = (D-1)/p;
+    if (out.R < remainder)
+        node->index = out.R*(fpp + 1) + best_feat;
+    else
+        node->index = remainder*(fpp + 1) + (out.R-remainder)*fpp + best_feat;
+        
+    node->threshold = threshold;
+
+    if (rank == 0)
+        printf("Best feature: %d, Best thresh: %f, Impurity %f, n_l %d, n_r %d, first %d, row %d\n", node->index, node->threshold, out.P, n_l, n_r, first, row);
+
+    printf("2222rank %d level %d\n", rank, level);
     //Create right and left children
     Node *l = malloc(sizeof(Node));
     Node *r = malloc(sizeof(Node));
@@ -535,6 +583,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     
     //Make MPI Barrier, then begin next round; check level, entropy, or purity to decide
 
+    printf("11111rank %d level %d\n", rank, level);
     //printf("LEFT\n");
     ParallelSplit(l, data, n_l, first, level+1, rank, num_features);
     //printf("RIGHT\n");
