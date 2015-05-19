@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "tree.h"
+#include "header.h"
 #include "util.h"
 #include "mpi.h"
 
@@ -72,7 +72,7 @@ int main (int argc, char *argv[]) {
     ///////SCATTERING///THE///DATA//////////////////////////////////
     int num_features = (D-1)/p;
     int remainder = (D-1)%p;
-    int n = 13007;
+    int n = N;
     int i, j;
     int *feature_list;
     if (rank < remainder) {
@@ -116,11 +116,6 @@ int main (int argc, char *argv[]) {
             data[feat][i] = base[i];
     }
 
-    ///////PRE-SORT///////////////////////////
-    for (feat = 0; feat < num_features; ++feat)
-        PodSort(data[feat], 0, n-1, feat);
-    //////////////////////////////////////////
-
     free(MYDATA);
 
     double **ALLDATA = NULL;
@@ -128,11 +123,12 @@ int main (int argc, char *argv[]) {
         ALLDATA = MNIST17();
 
     /////////////////////////////////////////////////////////
+    printf("rank %d here\n", rank);
 
     timestamp_type start, stop;
     int t;
     int s;
-    int T = 50;
+    int T = 2;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
@@ -146,25 +142,65 @@ int main (int argc, char *argv[]) {
         H[t]->parent = NULL;
     }
 
-
+/*
+    if (rank == 0) {
+        printf("testing labels\n");
+        for ( i = 0; i < n; ++i) {
+            if (ALLDATA[i][D-1]*base[i]->label < 1)
+                printf("WRONGLABEL i = %d", i);
+        }
+    }
+*/
+    
     printf("Starting AdaBoost\n");
+    MPI_Barrier(MPI_COMM_WORLD);
     get_timestamp(&start);
 
+    //int spaces;////////////////////////////////////////////////////
+
     for (t = 0; t < T; ++t) {
+
+        //Pre-sort data before tree-building
+        for (feat = 0; feat < num_features; ++feat) {
+            PodSort(data[feat], 0, n-1, feat);
+        }
+
+        //printf("rank %d, weight 7: %f\n", rank, base[7]->weight);
+        //printf("rank %d, weight 14: %f\n", rank, base[14]->weight);
+        //printf("rank %d, weight 34: %f\n", rank, base[34]->weight);
 
         //Building tree
         if (rank == 0)
             printf("t = %d: Building tree\n", t); 
         ParallelSplit(H[t], data, n, 0, 0, rank, num_features);
 
-        if (rank == 0) {
+        if (rank%1 == 0) {
             e = PError(H[t], ALLDATA, base, n);
             error[t] = e;
             alpha[t] = 0.5*log((1 - e)/e);
             Z = 2*sqrt(e*(1 - e));
             for (i = 0; i < n; ++i) {
                 base[i]->weight = base[i]->weight*exp(-alpha[t]*WeakLearner(H[t], ALLDATA[i])*base[i]->label)/Z;
+                //if (i % 1000 == 0)
+                //    printf("weight %d: %f\n", i, base[i]->weight);
+
             }
+
+/*
+            /////////////////////////////////////////////////////
+            spaces = 0;
+            for (i = 0; i < n; ++i) {
+                if (WeakLearner(H[t], ALLDATA[i])*base[i]->label < 0) {
+                    printf("%6d ", i);
+                    spaces++;
+                    if (spaces==14) {
+                        printf("\n");
+                        spaces = 0;
+                    }
+                }
+            }
+            ////////////////////////////////////////////////////
+*/
 
             running_error[t] = 0;
             for (i = 0; i < n; ++i) {
@@ -180,7 +216,13 @@ int main (int argc, char *argv[]) {
         }
     }
 
+    MPI_Barrier(MPI_COMM_WORLD);
     get_timestamp(&stop);
+    
+    //printf("rank %d, weight 7: %f\n", rank, base[7]->weight);
+    //printf("rank %d, weight 14: %f\n", rank, base[14]->weight);
+    //printf("rank %d, weight 34: %f\n", rank, base[34]->weight);
+
     double elapsed = timestamp_diff_in_seconds(start, stop);
     printf("Elapsed time: %f seconds\n", elapsed);
 
