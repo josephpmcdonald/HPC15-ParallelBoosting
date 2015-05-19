@@ -1,7 +1,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <math.h>
-#include "tree.h"
+#include "header.h"
 #include "util.h"
 
 //Note that D represents the number of features + 1 (for the label). 
@@ -113,7 +113,8 @@ double AdaBoost(double **data, int n) {
 int main(int argc, char *argv[]) { 
 
     double **data = MNIST17();
-    int n = 13007;
+    //double **checkdata = MNIST17();
+    int n = N;
 
     //Inserted AdaBoost in main below
     //AdaBoost(data17, n);
@@ -121,7 +122,7 @@ int main(int argc, char *argv[]) {
     int i;
     int t;
     int s;
-    int T = 50;
+    int T = 2;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
@@ -132,21 +133,49 @@ int main(int argc, char *argv[]) {
     for (t = 0; t < T; ++t)
         H[t] = malloc(sizeof(Node));
 
+    for (i = 0; i < n; ++i) {
+        data[i][D] = 1./n;
+        //checkdata[i][D] = 1./n;
+    }
+
     printf("Starting AdaBoost\n");
     get_timestamp(&start);
-    for (i = 0; i < n; ++i) 
-        data[i][D] = 1./n;
+
+    //int spaces;
 
     for (t = 0; t < T; ++t) {
+
+        //printf("weight 7: %f\n", checkdata[7][D]);
+        //printf("weight 14: %f\n", checkdata[14][D]);
+        //printf("weight 34: %f\n", checkdata[34][D]);
+
+        //Building tree
         printf("t = %d: Building tree\n", t);
         BuildTree(H[t], data, n);
         e = Error(H[t], data, n);
         error[t] = e;
         alpha[t] = 0.5*log((1 - e)/e);
         Z = 2*sqrt(e*(1 - e));
-        for (i = 0; i < n; ++i){
+        for (i = 0; i < n; ++i) {
             data[i][D] = data[i][D]*exp(-alpha[t]*WeakLearner(H[t], data[i])*data[i][D-1])/Z;
+            //checkdata[i][D] = checkdata[i][D]*exp(-alpha[t]*WeakLearner(H[t], checkdata[i])*checkdata[i][D-1])/Z;
         }
+
+/*
+        /////////////////////////////////////////////////////
+        spaces = 0;
+        for (i = 0; i < n; ++i) {
+            if (WeakLearner(H[t], checkdata[i])*checkdata[i][D-1] < 0) {
+                printf("%6d ", i);
+                spaces++;
+                if (spaces==14) {
+                    printf("\n");
+                    spaces = 0;
+                }
+            }
+        }
+        ////////////////////////////////////////////////////
+*/
 
         running_error[t] = 0;
         for (i = 0; i < n; ++i) {
@@ -155,11 +184,15 @@ int main(int argc, char *argv[]) {
                 sum += alpha[s]*WeakLearner(H[s], data[i]);
 
             if (data[i][D-1]*sum < 0)
-                 running_error[t] += 1./n;
+                running_error[t] += 1./n;
         }
 
         printf("error = %f\n", running_error[t]);
     }
+
+    //printf("weight 7: %f\n", checkdata[7][D]);
+    //printf("weight 14: %f\n", checkdata[14][D]);
+    //printf("weight 34: %f\n", checkdata[34][D]);
 
     get_timestamp(&stop);
     double elapsed = timestamp_diff_in_seconds(start, stop);
