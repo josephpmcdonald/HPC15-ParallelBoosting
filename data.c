@@ -1,6 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
-#include "tree.h"
+#include "header.h"
 #include "mpi.h"
 
 /* Functions for data IO, both retrieval and allocation. We choose to store
@@ -38,7 +38,7 @@ double **ParMNIST17(int *feature_list, int num_features) {
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     int i;
     int j;
-    int n = 13007;
+    int n = N;
     FILE *labels;
     labels = fopen("train-labels.idx1-ubyte", "rb");
     FILE *images;
@@ -86,9 +86,12 @@ double **ParMNIST17(int *feature_list, int num_features) {
 
             ++count17;
         }
+
+        if (N == count17)
+            break;
     }
 
-    printf("\n1/7:%d\n", count17);
+    printf("1/7:%d\n", count17);
 
     //long lsize;
     //fseek(images, 0, SEEK_END);
@@ -106,7 +109,7 @@ double **MNIST17() {
 
     int i;
     int j;
-    int n = 13007;
+    int n = N;
     FILE *labels;
     labels = fopen("train-labels.idx1-ubyte", "rb");
     FILE *images;
@@ -154,6 +157,9 @@ double **MNIST17() {
 
             ++count17;
         }
+
+        if (N == count17)
+            break;
     }
 
     printf("1/7:%d\n", count17);
