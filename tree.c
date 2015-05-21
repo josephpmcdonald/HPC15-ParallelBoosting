@@ -222,7 +222,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
     double sort_time = 0.;
     double split_time = 0.;
 
-    int max_level = 2;
+    int max_level = 3;
     int min_points = 6;
 
     node->left = NULL;
@@ -366,7 +366,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
  *
  */
 
-    int max_level = 2;
+    int max_level = 3;
     int min_points = 6;
 
     node->left = NULL;
@@ -378,17 +378,12 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     int feat;
     int last = first+n-1;
 
-    if(rank == 1 && level == 1)
-        printf("test: %p\n", data[0][1523]);
     //Get initial counts for positive/negative labels
     int pos = 0;
     double pos_w = 0;//positive weight
     double tot = 0;//total weight
 
-    printf("RANK %d\n", rank);
     for (i = first; i < last+1; ++i) {
-        if(rank == 1 && level == 1)
-           printf("%d    ", i); 
         tot += data[0][i]->weight;
 
         if (data[0][i]->label > 0) {
@@ -492,7 +487,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     int n_r = n - n_l;
 
     //For min processor, construct and broadcast list telling which node each point goes to
-    int *keys = malloc(N*sizeof(int));
+    char *keys = malloc(N*sizeof(char));
     for (i = 0; i < N; ++i)
         keys[i] = -1;
     if (rank == out.R) {
@@ -506,18 +501,20 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
 
     //Sort pod pointer list into ordered right node and left node
     Pod **holder = malloc(n*sizeof(Pod*));
+
+
     int l_ind;
     int r_ind;
     for (feat = 0; feat < num_features; feat++) {
         l_ind = 0;
-        r_ind = n_l;
-        for (i = first; i < last+1; ++i) {
-            if (keys[data[feat][i]->key] == 1) {
-                holder[l_ind] = data[feat][i];
+        r_ind = 0;
+        for (i = 0; i < n; ++i) {
+            if (keys[data[feat][first+i]->key] == 1) {
+                holder[l_ind] = data[feat][first+i];
                 l_ind++;
             }
-            else if (keys[data[feat][i]->key] == 0) {
-                holder[r_ind] = data[feat][i];
+            else if (keys[data[feat][first+i]->key] == 0) {
+                holder[n_l+r_ind] = data[feat][first+i];
                 r_ind++;
             }
         }
@@ -525,6 +522,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
         for (i = 0; i < n; ++i)
             data[feat][first+i] = holder[i];
     }
+
 
 /*
 /////////////////////////////////////////////////////
@@ -565,9 +563,8 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     node->threshold = threshold;
 
     if (rank == 0)
-        printf("Best feature: %d, Best thresh: %f, Impurity %f, n_l %d, n_r %d, first %d, row %d\n", node->index, node->threshold, out.P, n_l, n_r, first, row);
+        printf("Best feature: %d, Best thresh: %f, Impurity %f, n_l %d\n", node->index, node->threshold, out.P, n_l);
 
-    printf("2222rank %d level %d\n", rank, level);
     //Create right and left children
     Node *l = malloc(sizeof(Node));
     Node *r = malloc(sizeof(Node));
@@ -583,7 +580,6 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     
     //Make MPI Barrier, then begin next round; check level, entropy, or purity to decide
 
-    printf("11111rank %d level %d\n", rank, level);
     //printf("LEFT\n");
     ParallelSplit(l, data, n_l, first, level+1, rank, num_features);
     //printf("RIGHT\n");
