@@ -112,6 +112,12 @@ double AdaBoost(double **data, int n) {
 
 int main(int argc, char *argv[]) { 
 
+    if (argc != 2) {
+        printf("Must supply T as second argument\n");
+        abort();
+    }
+    int T = atoi(argv[1]);
+
     double **data = MNIST17();
     //double **checkdata = MNIST17();
     int n = N;
@@ -122,7 +128,6 @@ int main(int argc, char *argv[]) {
     int i;
     int t;
     int s;
-    int T = 2;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
