@@ -61,6 +61,11 @@ int main (int argc, char *argv[]) {
  */
 
     MPI_Init(&argc, &argv);
+    if (argc != 2) {
+        printf("Must supply T as second argument\n");
+        abort();
+    }
+    int T = atoi(argv[1]);
     int rank, p;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
@@ -122,19 +127,16 @@ int main (int argc, char *argv[]) {
     if (rank == 0)
         ALLDATA = MNIST17();
 
-    /////////////////////////////////////////////////////////
-    printf("rank %d here\n", rank);
-
     timestamp_type start, stop;
     int t;
     int s;
-    int T = 2;
     double e;
     double Z;
     double *error = malloc(T*sizeof(double));
     double *alpha = malloc(T*sizeof(double));
     double *running_error = malloc(T*sizeof(double));
     double sum;
+    double send_weights[N];    
 
     Node **H = malloc(T*sizeof(Node*));
     for (t = 0; t < T; ++t) {
@@ -174,16 +176,14 @@ int main (int argc, char *argv[]) {
             printf("t = %d: Building tree\n", t); 
         ParallelSplit(H[t], data, n, 0, 0, rank, num_features);
 
-        if (rank%1 == 0) {
+        if (rank == 0) {
             e = PError(H[t], ALLDATA, base, n);
             error[t] = e;
             alpha[t] = 0.5*log((1 - e)/e);
             Z = 2*sqrt(e*(1 - e));
             for (i = 0; i < n; ++i) {
                 base[i]->weight = base[i]->weight*exp(-alpha[t]*WeakLearner(H[t], ALLDATA[i])*base[i]->label)/Z;
-                //if (i % 1000 == 0)
-                //    printf("weight %d: %f\n", i, base[i]->weight);
-
+                send_weights[i] = base[i]->weight;
             }
 
 /*
@@ -214,6 +214,10 @@ int main (int argc, char *argv[]) {
 
             printf("error = %f\n", running_error[t]);
         }
+        
+        MPI_Bcast(send_weights, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        for (i = 0; i < n; ++i)
+            base[i]->weight = send_weights[i];
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
