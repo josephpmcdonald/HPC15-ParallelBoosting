@@ -91,7 +91,7 @@ double **ParMNIST17(int *feature_list, int num_features) {
             break;
     }
 
-    printf("1/7:%d\n", count17);
+    //printf("1/7:%d\n", count17);
 
     //long lsize;
     //fseek(images, 0, SEEK_END);
@@ -162,7 +162,7 @@ double **MNIST17() {
             break;
     }
 
-    printf("1/7:%d\n", count17);
+    //printf("1/7:%d\n", count17);
 
     long lsize;
     fseek(images, 0, SEEK_END);
