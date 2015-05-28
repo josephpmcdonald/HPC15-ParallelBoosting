@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <string.h>
 #include "header.h"
 #include "mpi.h"
 
@@ -31,6 +32,55 @@
         printf("\n");
     }
 */
+
+double **ParHIGGS(int *feature_list, int num_features) {
+
+    int n = N;
+    char filename[15];
+    int i, j, k;
+    FILE *file;
+    char line[1000];
+    char *ptr;
+
+    //Allocate pointers and array for each observation
+    double **data = malloc(n*sizeof(double*));
+
+    for (i = 0; i < n; ++i)
+        data[i] = malloc((num_features+1)*sizeof(double));
+
+    double holder[29];
+
+    for (i = 0; i < 1; ++i) {
+        //sprintf(filename, "/scratch/HIGGS/HIGGS%03d.txt", i);
+        sprintf(filename, "HIGGS%03d.txt", i);
+        file = fopen(filename, "r");
+
+        for (j = 0; j < 100000; ++j) {
+            fgets(line, 1000, file);
+            ptr = strtok(line, ",\n");
+            holder[0] = atof(ptr);
+            for (k = 1; k < 29; ++k) {
+                ptr = strtok(NULL, ",\n");
+                holder[k] = atof(ptr);
+            }
+            
+            for (k = 0; k < num_features; ++k)
+                data[j][k] = holder[k+1];
+            data[j][num_features] = holder[0];
+        }
+
+        fclose(file);
+    }
+
+    for (i = 0; i < 10; ++i) {
+        for (j = 0; j < 29; ++j) {
+            printf("%f ", data[i][j]);
+        }
+        printf("\n");
+    }
+
+    return data;
+}
 
 double **ParMNIST17(int *feature_list, int num_features) {
 
@@ -103,7 +153,6 @@ double **ParMNIST17(int *feature_list, int num_features) {
 
     return data;
 }
-
 
 double **MNIST17() {
 
