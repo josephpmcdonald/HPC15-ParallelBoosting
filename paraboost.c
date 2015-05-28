@@ -95,10 +95,13 @@ int main (int argc, char *argv[]) {
     
 
     //////COPYDATA///////////////////////////////////////////
-    double **MYDATA = ParMNIST17(feature_list, num_features);
+    double **MYDATA = ParHIGGS(feature_list, num_features);
+
+    return;
 
     //Allocate pointers to pods 
     Pod **base = malloc(n*sizeof(Pod*));
+
     //Each process stores array of pods containing feature
     for (i = 0; i < n; ++i) {
         base[i] = malloc(sizeof(Pod));
@@ -167,10 +170,6 @@ int main (int argc, char *argv[]) {
             PodSort(data[feat], 0, n-1, feat);
         }
 
-        //printf("rank %d, weight 7: %f\n", rank, base[7]->weight);
-        //printf("rank %d, weight 14: %f\n", rank, base[14]->weight);
-        //printf("rank %d, weight 34: %f\n", rank, base[34]->weight);
-
         //Building tree
         if (rank == 0)
             printf("t = %d: Building tree\n", t); 
@@ -223,10 +222,6 @@ int main (int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
     get_timestamp(&stop);
     
-    //printf("rank %d, weight 7: %f\n", rank, base[7]->weight);
-    //printf("rank %d, weight 14: %f\n", rank, base[14]->weight);
-    //printf("rank %d, weight 34: %f\n", rank, base[34]->weight);
-
     double elapsed = timestamp_diff_in_seconds(start, stop);
     printf("Elapsed time: %f seconds\n", elapsed);
 
@@ -255,6 +250,17 @@ int main (int argc, char *argv[]) {
 
     return 0;
 }
+
+
+
+
+//*/
+
+
+
+
+
+
 
 
 
