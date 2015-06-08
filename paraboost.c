@@ -67,18 +67,24 @@ int main (int argc, char *argv[]) {
     }
     int T = atoi(argv[1]);
     int rank, p;
+    int i, j;
+    int n = N;
     MPI_Comm_rank(MPI_COMM_WORLD, &rank);
     MPI_Comm_size(MPI_COMM_WORLD, &p);
+
     if (p > D-1) {
         printf("Too many processors. Aborting...\n");
         abort();
     }
 
-    ///////SCATTERING///THE///DATA//////////////////////////////////
+
+/* feature_list lists the features/indices that a process is responsible
+ * for sortings and splitting. num_features is the length of feature_list.
+ * Set feature_list and num_features for each process by dividing evenly
+ * features over different processes.
+ */
     int num_features = (D-1)/p;
     int remainder = (D-1)%p;
-    int n = N;
-    int i, j;
     int *feature_list;
     if (rank < remainder) {
         num_features += 1;
@@ -93,13 +99,12 @@ int main (int argc, char *argv[]) {
     }
     printf("Rank %d has feature %d through %d\n", rank, feature_list[0], feature_list[num_features-1]);
     
-
-    //////COPYDATA///////////////////////////////////////////
+    //Copy data from files into memory
     double **MYDATA = ParHIGGS(feature_list, num_features);
 
-    return;
+    //return 0;
 
-    //Allocate pointers to pods 
+    //Allocate pointers to pods. base is array of pods 
     Pod **base = malloc(n*sizeof(Pod*));
 
     //Each process stores array of pods containing feature
@@ -108,6 +113,7 @@ int main (int argc, char *argv[]) {
         base[i]->val = malloc(num_features*sizeof(double));
     }
 
+    //Set key, fill in feature values for process, label and weight
     for (i = 0; i < n; ++i) {
         base[i]->key = i; //key
         for (j = 0; j < num_features; j++)
@@ -116,6 +122,7 @@ int main (int argc, char *argv[]) {
         base[i]->weight = 1./n; //weight
     }
 
+    //data is array of pointers to base, which get sorted by feature value
     Pod ***data = malloc(num_features*sizeof(Pod**));
     int feat;
     for (feat = 0; feat < num_features; feat++){
@@ -126,6 +133,7 @@ int main (int argc, char *argv[]) {
 
     free(MYDATA);
 
+    //Use ALLDATA to check training error and re-weight observations
     double **ALLDATA = NULL;
     if (rank == 0)
         ALLDATA = MNIST17();
@@ -161,14 +169,15 @@ int main (int argc, char *argv[]) {
     MPI_Barrier(MPI_COMM_WORLD);
     get_timestamp(&start);
 
-    //int spaces;////////////////////////////////////////////////////
-
     for (t = 0; t < T; ++t) {
+        printf("t = %d: start\n", t);
 
         //Pre-sort data before tree-building
         for (feat = 0; feat < num_features; ++feat) {
             PodSort(data[feat], 0, n-1, feat);
         }
+
+        printf("t = %d: done sorting\n", t);
 
         //Building tree
         if (rank == 0)
@@ -217,6 +226,8 @@ int main (int argc, char *argv[]) {
         MPI_Bcast(send_weights, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
         for (i = 0; i < n; ++i)
             base[i]->weight = send_weights[i];
+
+        printf("t = %d: end\n", t);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
