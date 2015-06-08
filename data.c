@@ -36,7 +36,7 @@
 double **ParHIGGS(int *feature_list, int num_features) {
 
     int n = N;
-    char filename[15];
+    char filename[28];
     int i, j, k;
     FILE *file;
     char line[1000];
@@ -50,12 +50,15 @@ double **ParHIGGS(int *feature_list, int num_features) {
 
     double holder[29];
 
-    for (i = 0; i < 1; ++i) {
-        //sprintf(filename, "/scratch/HIGGS/HIGGS%03d.txt", i);
-        sprintf(filename, "HIGGS%03d.txt", i);
+    for (i = 0; i < 10; ++i) {
+        //printf("i = %d\n", i);
+        sprintf(filename, "/scratch/HIGGS/HIGGS%03d.txt", i);
+        //sprintf(filename, "HIGGS%03d.txt", i);
         file = fopen(filename, "r");
+        //file = fopen("/scratch/HIGGS/HIGGS000.txt","r");
 
         for (j = 0; j < 100000; ++j) {
+            //printf("j = %d", j);
             fgets(line, 1000, file);
             ptr = strtok(line, ",\n");
             holder[0] = atof(ptr);
@@ -65,19 +68,24 @@ double **ParHIGGS(int *feature_list, int num_features) {
             }
             
             for (k = 0; k < num_features; ++k)
-                data[j][k] = holder[k+1];
+                data[100000*i + j][k] = holder[feature_list[k]+1];
             data[j][num_features] = holder[0];
+
+            //printf("\r");
         }
+        //printf("\n");
 
         fclose(file);
     }
 
+/*
     for (i = 0; i < 10; ++i) {
         for (j = 0; j < 29; ++j) {
             printf("%f ", data[i][j]);
         }
         printf("\n");
     }
+*/
 
     return data;
 }
