@@ -174,8 +174,10 @@ int main (int argc, char *argv[]) {
 
         //Pre-sort data before tree-building
         for (feat = 0; feat < num_features; ++feat) {
+            printf("%d", feat);
             PodSort(data[feat], 0, n-1, feat);
         }
+        printf("\n");
 
         printf("t = %d: done sorting\n", t);
 
