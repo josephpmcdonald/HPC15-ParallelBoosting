@@ -31,26 +31,24 @@ labeled observation is a coordinate pair $(x, y)$ where $x\in\mathbb{R}^d$ is a
 vector of data associated with the observation (feature vector) and $y\in\{1,
 -1\}$ is the corresponding label of the observation. For example, $x_i$ might
 be a point in $\mathbb{R}^2$ representing the height and weight of the $i$th
-individual in a data set while the value of $y_i$ may correspond to the
-person's gender. The goal in classification is to accurately predict the label
+individual in a data set while the value of $y_i$ may indicate the individual's
+gender. The goal in classification is to accurately predict the label
 of a given observation using its feature vector. In this setting, the scenario
 of supervised learning involves using a training set of labeled observations
 $(x_i, y_i)$ to construct a prediction function $h$, one that takes a feature
 vector $\hat{x}$ and gives a prediction on the corresponding label
-$h(\hat{x})=\hat{y}$. It is common to use a separate set of test data to check
-the accuracy of the predictor, data that hasn't been used for training. There
-are many methods used to obtain a predictor for classification in supervised
+$h(\hat{x})=\hat{y}$. To check the accuracy of the predictor it is common to use a separate set of test data, i.e. data that hasn't been used for training. There are many methods used to obtain a predictor for classification in supervised
 learning, and the class of ensemble methods concerns combining several
-predictors to obtain one.
+predictors together.
 
 Suppose now there exists an algorithm that, for any set of training data, is
 guaranteed to give you a predictor that has at least 50\% accuracy. Such an
 algorithm is called a weak learning algorithm since it yields a predictor that
-performs marginally better than guessing randomly. These prediction functions
-that a weak learning algorithm returns are called base classifiers, and a
-natural question arises about whether we can use a combination of weak learners
-to get a stronger one with much better accuracy and what this sort of ensemble
-method would look like. Ensemble methods like this are called boosting, and the
+performs marginally better than guessing randomly. The prediction functions
+returned by a weak learning algorithm are called base classifiers, and a
+natural question arises asking whether a combination of weak learners can be used
+to make a strong learner, or one that can achieve a certain level of accuracy.
+Ensemble methods like this are called boosting, and the
 algorithm AdaBoost introduced in \cite{no1} accomplishes this through
 successive rounds of training a weak learner to the data and subsequently
 re-weighting the training samples \cite{no1}.
@@ -67,7 +65,7 @@ each round of AdaBoost for $t$ from 1 to $T$, the weak learner selects a
 base classifier $h_t: \mathbb{R}^n\rightarrow\{1,-1\}$ from a set of functions
 $H$, in particular choosing the one with the least error
 $\epsilon_t=\sum_{i=1}^{n}D_t(i)I(h_t(x_i)\neq y_i)$ (Line 4) where $D_t(i)$ is
-the weight associated with the $i$th sample. The algorithm then reweights the
+the weight associated with the $i$th sample. The algorithm then re-weights the
 training samples in Line 8 to place more emphasis on those that that the chosen
 classifier $h_t$ incorrectly predicted, so that in future rounds the base
 classifiers are tailored to correcting these mistakes. The predictor that is
