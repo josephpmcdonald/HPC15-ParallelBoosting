@@ -156,10 +156,20 @@ the work of finding the dimension in the feature space that best splits the
 region and increases the purity for each node in the tree. The datasets we are
 handling have several dimensions, on the order of tens to hundreds, so each
 processor could be responsible for a group of dimensions in the feature space.
-After each processor determines the best dimension to split on amongst it's
-group, we can perform a reduction and determine the best split over all
-dimensions.
+After each processor determines the best dimension to split on amongst those
+it's responsible for, we can perform a reduction and determine the best split
+over all dimensions. Any tree will split the feature space multiple times so
+there are several occasions for parallelism to speed up execution. In testing I
+commonly set the maximum depth for a tree to between two to five levels. Also
+the number of rounds of AdaBoost, and hence the number of trees constructed, is
+a parameter in the method allowing you to affect how often the algorithm drops
+into parallel structure.
 
+I've noticed with the MNIST I can achieve a speedup by a factor of around 4
+when using four processors, yet increasing beyond this does not give any
+noticeable gains.
+
+Executing this parallelized tree building 
 
 
 %\maketitle
