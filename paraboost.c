@@ -6,8 +6,9 @@
 #include "mpi.h"
 
 
-/* paraboost.c implements a parallelized version of AdaBoost, kept in a
- * separate file to simplify compilation.
+/* paraboost.c implements a parallelized version of AdaBoost and contains
+ * the main section of the boosting algorithm.
+ * 
  */
 
 
@@ -48,7 +49,8 @@ double PError(Node *tree, double **data, Pod **base, int n) {
 
     for (i = 0; i < n; ++i) {
         if (WeakLearner(tree, data[i])*base[i]->label < 0)
-            error += base[i]->weight;
+            error += 1./n;
+            //error += base[i]->weight;
     }
 
     return error;
@@ -78,10 +80,10 @@ int main (int argc, char *argv[]) {
     }
 
 
-/* feature_list lists the features/indices that a process is responsible
- * for sortings and splitting. num_features is the length of feature_list.
- * Set feature_list and num_features for each process by dividing evenly
- * features over different processes.
+/* feature_list lists the features/columns that a process is responsible
+ * for sorting and splitting. num_features is the length of feature_list.
+ * Set feature_list and num_features for each process by dividing features
+ * evenly over different processes.
  */
     int num_features = (D-1)/p;
     int remainder = (D-1)%p;
@@ -100,6 +102,7 @@ int main (int argc, char *argv[]) {
     printf("Rank %d has feature %d through %d\n", rank, feature_list[0], feature_list[num_features-1]);
     
     //Copy data from files into memory
+    //TODO: Memory leak might be from array that MYDATA points to; none of MYDATA's elements, which are pointers, are freed
     double **MYDATA = ParHIGGS(feature_list, num_features);
 
     //return 0;
@@ -125,7 +128,7 @@ int main (int argc, char *argv[]) {
     //data is array of pointers to base, which get sorted by feature value
     Pod ***data = malloc(num_features*sizeof(Pod**));
     int feat;
-    for (feat = 0; feat < num_features; feat++){
+    for (feat = 0; feat < num_features; feat++) {
         data[feat] = malloc(n*sizeof(Pod*));
         for (i = 0; i < n; ++i)
             data[feat][i] = base[i];
@@ -134,9 +137,10 @@ int main (int argc, char *argv[]) {
     free(MYDATA);
 
     //Use ALLDATA to check training error and re-weight observations
+    //TODO: Memory leak might be from array that ALLDATA points to
     double **ALLDATA = NULL;
     if (rank == 0)
-        ALLDATA = MNIST17();
+        ALLDATA = ParHIGGS(feature_list, num_features);//MNIST17();
 
     timestamp_type start, stop;
     int t;
@@ -172,7 +176,7 @@ int main (int argc, char *argv[]) {
     for (t = 0; t < T; ++t) {
         printf("t = %d: start\n", t);
 
-        //Pre-sort data before tree-building
+        //Sort data before tree-building
         for (feat = 0; feat < num_features; ++feat) {
             printf("%d", feat);
             PodSort(data[feat], 0, n-1, feat);
@@ -226,6 +230,7 @@ int main (int argc, char *argv[]) {
         }
         
         MPI_Bcast(send_weights, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
+        printf("weights[0] = %f\n", send_weights[0]);
         for (i = 0; i < n; ++i)
             base[i]->weight = send_weights[i];
 
