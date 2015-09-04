@@ -76,16 +76,16 @@ int BestSplit(double **data, int n, int first, int col, int pos, double *impurit
 }
 
 
-int WeightedBestSplit(double **data, int n, int first, int col, double pos, double tot, double *impurity) {
+int WeightedBestSplit(double **data, int n, int first, int feat, double pos, double tot, double *impurity) {
 
 /* Returns the row/index of the table with the least impurity after splitting
- * for fixed column/feature col. Partition rows up to and including that index
+ * for fixed column/feature feat. Partition rows up to and including that index
  * from everything afterwards.
  *
  * data     = array of data sorted on index a 
  * n        = length of table (# of rows/samples)
  * first    = first index in the node
- * col      = sorting/splitting feature/column of data
+ * feat      = sorting/splitting feature/column of data
  * pos      = weight of positive labels
  * tot      = total weight of all labels
  * impurity = pointer to save impurity after split
@@ -111,9 +111,9 @@ int WeightedBestSplit(double **data, int n, int first, int col, double pos, doub
     int i = 0;
     while (i < n) {
 
-        threshold = data[first+i][col];
+        threshold = data[first+i][feat];
 
-        while (i < n && (data[first+i][col] == threshold)) {
+        while (i < n && (data[first+i][feat] == threshold)) {
             if (data[first+i][D-1] > 0)
                 lpos += data[first+i][D];
 
@@ -216,6 +216,7 @@ void SplitNode(Node *node, double **data, int n, int first, int level) {
  *         column as the label (data[i][d-1]))
  * n     = length of table (# of rows/samples) on branch of node
  * first = first index of samples on branch of node
+ * level = the depth of node in the tree
  */
     
     timestamp_type sort_start, sort_stop, split_start, split_stop;
@@ -362,7 +363,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
  * data for one feature plus the labels and a pointer to the sample ("pod")
  * with index to be used as a key.
  * 
- * Each processor has it's data pre-sorted after loading. 
+ * Each processor has its data sorted before ParallelSplit is called. 
  *
  */
 
@@ -442,7 +443,7 @@ void ParallelSplit(Node *node, Pod ***data, int n, int first, int level, int ran
     //get_timestamp(&split_stop);
     //split_time += timestamp_diff_in_seconds(split_start, split_stop);
 
-    //Save impurity and process rank to structure
+    //Save impurity and process rank to structure for MPI communication
     struct {
         double P; //impurity
         int R; //rank
