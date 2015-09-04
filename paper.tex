@@ -96,34 +96,21 @@ a similar factor.
 
 \section{Decision Trees}
 
-\indent Decision trees are a well-known method used in classification which partitions
-the feature space into rectangular regions and gives each region the most
-frequent label among the training set points it contains. In the most common
-decision tree algorithms each partition of the feature space is made along
-coordinate axes and done in a heirarchical way.  Starting with the entire
-space, a line parallel to an axis divides it into two regions and then the same
-is done for these resulting regions. This process is repeated many times until
-the space is partitioned into several rectangles, like the example in Figure 1
+\indent Decision trees are a well-known method used in classification which
+partitions the feature space into rectangular regions and applies to each
+region the most frequent label among the training set points it contains. In
+the most common decision tree algorithms each partition of the feature space is
+made along coordinate axes and is done in a heirarchical way. Initially, a line
+parallel to an axis divides the space into two regions, and then the same is
+done for these resulting regions. This process is repeated many times until the
+space is partitioned into several rectangles, like the example in Figure 1
 (\cite{HTF}). Each split is made to separate points of the two distinct classes
 into different regions as best as possible. Thus the two resulting rectangles
-will have a greater {\it purity} in comparison to the parent node.
+will have less {\it impurity} in comparison to the parent node.
 
-\begin{figure}[b!]
-\centering
-\begin{minipage}{0.45\textwidth}
-\centering
-\includegraphics[width=2.5in]{partition}
-\caption{space partitioned by a decision tree}
-\end{minipage}\hfill
-\begin{minipage}{0.45\textwidth}
-\centering
-\includegraphics[width=2.5in]{dectree}
-\caption{decision tree}
-\end{minipage}
-\end{figure}
 
-There are a few common ways to measure purity for a given region containing
-sample points. Gini Index is used here which can be easily substituted for
+There are a few common ways to measure impurity for a given region containing
+sample points. Gini index is used here which can be easily substituted for
 others. For two classes the Gini Index of region $A$ is $I(A) = 2p(1-p)$ where
 $p$ is the probability of choosing a point in the first class from $A$, which
 translates to the probability of incorrectly guessing the class of a randomly
@@ -132,7 +119,7 @@ chosen point from either class.
 The splitting of regions gives rise to the tree structure. At each node in the
 tree, the samples in the region corresponding to that node are ordered and
 counted to find in which dimension that region can be divided that gives the
-greatest increase in the purity of the branch. Figure 2 shows an example of
+greatest decrease in the impurity of the branch. Figure 2 shows an example of
 this where at the top of the tree the decision to split on the first feature
 $X_1$ is best and the separation is made at $t_1$. In the first of the two
 resulting regions it is determined that the best split is made on $X_2$ at
@@ -151,6 +138,23 @@ splitting on any feature.
 %decision. The most common way to partition the feature space is along
 %coordinate axes. 
 
+\begin{figure}[h!]
+\centering
+\begin{minipage}{0.45\textwidth}
+\centering
+\includegraphics[width=2.5in]{partition}
+\caption{space partitioned by a decision tree}
+\end{minipage}\hfill
+\begin{minipage}{0.45\textwidth}
+\centering
+\includegraphics[width=2.5in]{dectree}
+\caption{decision tree structure}
+\end{minipage}
+\end{figure}
+
+\section{Implementation}
+
+
 Since the tree-building process is the most time-consuming portion of AdaBoost,
 our goal is to parallelize this. It seems natural to divide amongst processors
 the work of finding the dimension in the feature space that best splits the
@@ -158,20 +162,61 @@ region and increases the purity for each node in the tree. The datasets we are
 handling have several dimensions, on the order of tens to hundreds, so each
 processor could be responsible for a group of dimensions in the feature space.
 
-After each processor determines the best dimension to split on amongst those
-it's responsible for, we can perform a reduction and determine the best split
-over all dimensions. Any tree will split the feature space multiple times so
+The AdaBoost algorithm is written in the main method of the program contained
+in {\tt paraboost.c}. This file also contains a few methods for utility, one
+that converts a decision tree data structure into a useable function and
+another that calculates weighted error. main() also performs load balancing by
+determing the features that each processor is responsible for. 
+
+The methods that collect data from files on the hard disk and organize storage
+are defined in {\tt data.c}. These methods scrape floats from text and binary
+files and allocate space on the heap to store feature vectors and their labels.
+main() calls them early to load the training data in memory. There are a number
+of different sorting routines in {\tt sort.c}, all implementations of QuickSort
+or MergeSort that vary with the structure of the data types they sort. These
+methods are used to order data structures prior to the decision tree
+construction.
+
+The methods that implement decision tree operations are located in {\tt
+tree.c}. ParallelSplit() performs the parallel node splitting procedure for a
+given node in a decision tree, using the data points in that node to find the
+partition minimizing the impurity of the resulting child nodes. It calls the
+subroutine PodWBS() for each feature, which computes the impurity for every
+possible partition of the data over that feature dimension and returns an index
+corresponding to the best partition for that dimension and the impurity. Since
+this is done for every feature the processor is responsible for,
+ParallelSplit() then broadcasts which of its features is best and the minimum
+impurity to every processor. Thus an Allreduce is performed in order to
+determine which feature among all has the best partition achieving the minimum
+impurity. This determines the two branches of the decision tree, and the root
+processor informs the others which branch of the tree each observation goes to.
+The arrays of pointers to these observations are re-sorted to reflect this and
+ParallelSplit() is then called recursively on each of the two child nodes.
+After an end condition is met (depth in tree, small number of points
+in node, or very low impurity) the function returns. Thus this method is called for every node in the tree and performs noticeable computation for all nodes that aren't leaves.
+
+
+%After each processor determines the best dimension to split on amongst those
+%it's responsible for, we can perform a reduction and determine the best split
+%over all dimensions. 
+
+
+Any tree will split the feature space multiple times so
 there are several occasions for parallelism to speed up execution. In testing I
 commonly set the maximum depth for a tree to between two to five levels. Also
 the number of rounds of AdaBoost, and hence the number of trees constructed, is
-a parameter in the method allowing you to affect how often the algorithm drops
-into parallel structure.
+a parameter in the method allowing you to affect how often the algorithm executes in parallel.
 
-I've noticed with the MNIST I can achieve a speedup by a factor of around 4
+
+
+\section{Data and Results}
+We employ the MNIST dataset to test our implementation. MNIST is a collection of 70,000 images of handwritten digits commonly used in image processing and pattern recognition research. The grayscale images are written in a binary file and consist of 28x28 arrays of integers ranging from 0 to 255 representing pixels varying from white to black. From this we separate out the set of 1's and 7's with the goal of performing binary classification between these two digits. We'll also trying to do the same thing with the digits 4 and 9. 
+
+
+With the MNIST dataset, a speedup by a factor of roughly four can be achieved
 when using four processors, yet increasing beyond this does not give any
 noticeable gains.
 
-Executing this parallelized tree building 
 
 
 %\maketitle
@@ -209,7 +254,10 @@ Executing this parallelized tree building
 
 %\bibitem{Mohri} Mohri
 
-%\bibitem{no4} Wiki
+%\bibitem{no4} Wiki AdaBoost
+
+%\bibitem{MNIST} Yann LeCun MNIST
+
 %\end{thebibliography}
 \end{document}
 
