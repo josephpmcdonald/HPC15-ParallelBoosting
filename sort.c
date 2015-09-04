@@ -1,5 +1,6 @@
 #include <stdlib.h>
 #include <stdio.h>
+#include <time.h>
 #include "header.h"
 
 /*
@@ -167,7 +168,7 @@ void PodSort(Pod **data, int first, int last, int feat) {
 
 /* PodSort is simply QuickSort but for data stored in Pods.
  *
- * data  = array containing sample data, labels, weights in Pod form to be sorted
+ * data  = pointer to array containing sample data, labels, weights in Pod form to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
  * feat  =  feature/index to sort on
@@ -192,7 +193,7 @@ void PodPartition(Pod **data, int first, int last, int feat, int ends[]) {
 
 /* PodPartition is simply Partition but for data stored in Pods.
  *
- * data  = array containing sample data, labels, weights in Pod form to be sorted
+ * data  = pointer to array containing sample data, labels, weights in Pod form to be sorted
  * first = first unsorted row that Sort may move
  * last  = last unsorted row that Sort may move
  * feat  =  feature/index to sort on
@@ -201,12 +202,18 @@ void PodPartition(Pod **data, int first, int last, int feat, int ends[]) {
  *
  */
 
+    srand(time(NULL));
+    int p_ind = rand() % (last-first+1) + first;
+    Pod *holder;
+    holder = data[last];
+    data[last] = data[p_ind];
+    data[p_ind] = holder;
+
     double pivot = data[last]->val[feat];
     int i = first;
     int j = last-1;
     int k = last;
     int l;
-    Pod *holder;
     while (i < j) {
         if (data[i]->val[feat] < pivot)
             ++i;
