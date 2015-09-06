@@ -49,8 +49,8 @@ double PError(Node *tree, double **data, Pod **base, int n) {
 
     for (i = 0; i < n; ++i) {
         if (WeakLearner(tree, data[i])*base[i]->label < 0)
-            error += 1./n;
-            //error += base[i]->weight;
+            //error += 1./n;
+            error += base[i]->weight;
     }
 
     return error;
@@ -103,7 +103,8 @@ int main (int argc, char *argv[]) {
     
     //Copy data from files into memory
     //TODO: Memory leak might be from array that MYDATA points to; none of MYDATA's elements, which are pointers, are freed
-    double **MYDATA = ParHIGGS(feature_list, num_features);
+    //double **MYDATA = ParHIGGS(feature_list, num_features);
+    double **MYDATA = ParMNIST17(feature_list, num_features);
 
     //return 0;
 
@@ -125,6 +126,7 @@ int main (int argc, char *argv[]) {
         base[i]->weight = 1./n; //weight
     }
 
+    printf("base weight = %f\n", base[0]->weight);
     //data is array of pointers to base, which get sorted by feature value
     Pod ***data = malloc(num_features*sizeof(Pod**));
     int feat;
@@ -138,9 +140,15 @@ int main (int argc, char *argv[]) {
 
     //Use ALLDATA to check training error and re-weight observations
     //TODO: Memory leak might be from array that ALLDATA points to
+    int *all_features = malloc((D-1)*sizeof(int));
+    for (i = 0; i < D-1; ++i)
+        all_features[i] = i;
     double **ALLDATA = NULL;
     if (rank == 0)
-        ALLDATA = ParHIGGS(feature_list, num_features);//MNIST17();
+        //ALLDATA = ParHIGGS(all_features, D-1);
+        ALLDATA = ParMNIST17(all_features, D-1);
+        
+    free(all_features);
 
     timestamp_type start, stop;
     int t;
@@ -230,10 +238,11 @@ int main (int argc, char *argv[]) {
         }
         
         MPI_Bcast(send_weights, n, MPI_DOUBLE, 0, MPI_COMM_WORLD);
-        printf("weights[0] = %f\n", send_weights[0]);
         for (i = 0; i < n; ++i)
             base[i]->weight = send_weights[i];
 
+        printf("weights[0] = %f\n", send_weights[0]);
+        printf("rank %d base weight = %f\n", rank, base[0]->weight);
         printf("t = %d: end\n", t);
     }
 

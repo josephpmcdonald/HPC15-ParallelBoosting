@@ -1,10 +1,12 @@
 #define GINI(pos, n) (2.*(pos)/(n)*((n)-(pos))/(n))
 #define ENTROPY(pos, n) ((pos)/(n)*log((pos)/(n)) + ((n)-(pos))/(n)*log(((n)-(pos))/(n)))
 #define WGINI(pos, tot) (2.*(pos)/(tot)*((tot)-(pos))/(tot))
-#define D 29
-#define N 1000000
+//#define D 29
+//#define N 1000000
+#define D 785
+#define N 13007
 
-//Note that D represents the number of features + 1 (for the label)
+//Note that D = number of features + 1 (for the label)
 
 struct TreeNode {
     struct TreeNode *parent;
