@@ -151,6 +151,8 @@ int main (int argc, char *argv[]) {
     free(all_features);
 
     timestamp_type start, stop;
+    timestamp_type t_start, t_stop;
+    double t_elapsed = 0.;
     int t;
     int s;
     double e;
@@ -186,17 +188,19 @@ int main (int argc, char *argv[]) {
 
         //Sort data before tree-building
         for (feat = 0; feat < num_features; ++feat) {
-            printf("%d", feat);
+            //printf("%d", feat);
             PodSort(data[feat], 0, n-1, feat);
         }
-        printf("\n");
+        //printf("\n");
 
         printf("t = %d: done sorting\n", t);
 
+        get_timestamp(&t_start);
         //Building tree
         if (rank == 0)
             printf("t = %d: Building tree\n", t); 
         ParallelSplit(H[t], data, n, 0, 0, rank, num_features);
+        get_timestamp(&t_stop);
 
         if (rank == 0) {
             e = PError(H[t], ALLDATA, base, n);
@@ -241,16 +245,19 @@ int main (int argc, char *argv[]) {
         for (i = 0; i < n; ++i)
             base[i]->weight = send_weights[i];
 
-        printf("weights[0] = %f\n", send_weights[0]);
-        printf("rank %d base weight = %f\n", rank, base[0]->weight);
+        //printf("weights[0] = %f\n", send_weights[0]);
+        //printf("rank %d base weight = %f\n", rank, base[0]->weight);
         printf("t = %d: end\n", t);
+        t_elapsed += timestamp_diff_in_seconds(t_start, t_stop);
     }
 
     MPI_Barrier(MPI_COMM_WORLD);
     get_timestamp(&stop);
     
     double elapsed = timestamp_diff_in_seconds(start, stop);
+
     printf("Elapsed time: %f seconds\n", elapsed);
+    printf("Elapsed parallel tree-building time: %f seconds\n", t_elapsed);
 
     free(error);
     free(alpha);
@@ -277,18 +284,6 @@ int main (int argc, char *argv[]) {
 
     return 0;
 }
-
-
-
-
-//*/
-
-
-
-
-
-
-
 
 
 
