@@ -193,7 +193,7 @@ processor informs the others which branch of the tree each observation goes to.
 The arrays of pointers to these observations are re-sorted to reflect this and
 ParallelSplit() is then called recursively on each of the two child nodes.
 After an end condition is met (depth in tree, small number of points
-in node, or very low impurity) the function returns. Thus this method is called for every node in the tree and performs noticeable computation for all nodes that aren't leaves.
+in node, or very low impurity) the function returns. This method is called for every node in the tree and performs noticeable computation for all nodes that aren't leaves.
 
 
 %After each processor determines the best dimension to split on amongst those
@@ -209,14 +209,25 @@ a parameter in the method allowing you to affect how often the algorithm execute
 
 
 
-\section{Data and Results}
-We employ the MNIST dataset to test our implementation. MNIST is a collection of 70,000 images of handwritten digits commonly used in image processing and pattern recognition research. The grayscale images are written in a binary file and consist of 28x28 arrays of integers ranging from 0 to 255 representing pixels varying from white to black. From this we separate out the set of 1's and 7's with the goal of performing binary classification between these two digits. We'll also trying to do the same thing with the digits 4 and 9. 
+
+\section{Data and Timings}
+We employ the MNIST dataset to test our implementation. MNIST is a collection of 70,000 images of handwritten digits commonly used in image processing and pattern recognition research. The grayscale images are written in a binary file and consist of 28x28 arrays of integers ranging from 0 to 255 representing pixels varying from white to black. From this we separate out the set of 1's and 7's with the goal of performing binary classification between these two digits. We'll also try this with the digits 4 and 9. This dataset can be obtained from \cite{MNIST}, and they are the four files referred to as the training set and test set images and labels.
+
+To test the parallel efficiency of this implementation, I ran the program on the host {\bf crunchy1} with 20 rounds of boosting with varying the number of processors as given in the following table. This gives the amount of time it took for the program to run as a whole in addition to the average time per processor spent constructing trees, since I wanted to measure the time spent in parallel without the extra overhead time performing serial tasks.
+
+  
 
 
-With the MNIST dataset, a speedup by a factor of roughly four can be achieved
-when using four processors, yet increasing beyond this does not give any
-noticeable gains.
 
+%With the MNIST dataset, a speedup by a factor of roughly four can be achieved when using four processors, yet increasing beyond this does not give any noticeable gains.
+
+
+\section{Useage}
+I used MPICH for the MPI processor communications. To use the parallel boosting tool, include the file {\tt makefile} in the folder with the source code and compile it to create the executable {\tt pboost}. Using the command {\tt mpirun}, specify the number of processors and list the number of boosting rounds to perform after the executable. For instance, to run the executable with four processors for 50 rounds:
+
+\begin{center}
+{\tt mpirun -np 4 ./pboost 50}
+\end{center}
 
 
 %\maketitle
