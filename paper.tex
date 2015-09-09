@@ -24,6 +24,10 @@
 
 \maketitle
 
+\begin{center}
+Note that the source code and this paper are available at\\ {\tt https://github.com/josephpmcdonald/HPC15-ParallelBoosting/}
+\end{center}
+
 \section{Introduction}
 
 \indent Binary and multiclass classification is a fundamental
@@ -51,9 +55,9 @@ returned by a weak learning algorithm are called base classifiers, and a
 natural question arises asking whether a combination of weak learners can be used
 to make a strong learner, or one that can achieve a certain level of accuracy.
 Ensemble methods like this are called boosting, and the
-algorithm AdaBoost introduced in \cite{no1} accomplishes this through
+algorithm AdaBoost introduced in \cite{FS} accomplishes this through
 successive rounds of training a weak learner to the data and subsequently
-re-weighting the training samples \cite{no1}.
+re-weighting the training samples \cite{FS}.
 
 The goal of this project is to implement a parallelized version of decision trees, a commonly
 used weak learner, in order to improve the running time of AdaBoost. We
@@ -74,7 +78,7 @@ weights in Line 8 to place more emphasis on the samples that $h_t$ misclassified
 so that in future rounds the base classifiers are chosen to correct these mistakes. The predictor that is
 returned in Line 9 after $T$ rounds is a linear combination of all $h_t$'s. Note the
 coefficient $\alpha_t$ gives more weight in the final predictor to the classifiers from rounds that fared better.
-We give the algorithm below.\\ \\
+We give the algorithm as detailed in \cite{Mohri} below.\\ \\
 {\sc AdaBoost}: $S = \{(x_i,y_i):i = 1\ldots n\}$
 \begin{enumerate}
 \itemsep1pt \parskip0pt \parsep0pt
@@ -103,8 +107,8 @@ the most common decision tree algorithms each partition of the feature space is
 made along coordinate axes and is done in a heirarchical way. Initially, a line
 parallel to an axis divides the space into two regions, and then the same is
 done for these resulting regions. This process is repeated many times until the
-space is partitioned into several rectangles, like the example in Figure 1
-(\cite{HTF}). Each split is made to separate points of the two distinct classes
+space is partitioned into several rectangles, like the example in Figure 1, taken from
+\cite{HTF}. Each split is made to separate points of the two distinct classes
 into different regions as best as possible. Thus the two resulting rectangles
 will have less {\it impurity} in comparison to the parent node.
 
@@ -143,12 +147,12 @@ splitting on any feature.
 \begin{minipage}{0.45\textwidth}
 \centering
 \includegraphics[width=2.5in]{partition}
-\caption{space partitioned by a decision tree}
+\caption{space partitioned by a decision tree, from \cite{HTF}}
 \end{minipage}\hfill
 \begin{minipage}{0.45\textwidth}
 \centering
 \includegraphics[width=2.5in]{dectree}
-\caption{decision tree structure}
+\caption{decision tree structure, from \cite{HTF}}
 \end{minipage}
 \end{figure}
 
@@ -211,15 +215,21 @@ a parameter in the method allowing you to affect how often the algorithm execute
 
 
 \section{Data and Timings}
-We employ the MNIST dataset to test our implementation. MNIST is a collection of 70,000 images of handwritten digits commonly used in image processing and pattern recognition research. The grayscale images are written in a binary file and consist of 28x28 arrays of integers ranging from 0 to 255 representing pixels varying from white to black. From this we separate out the set of 1's and 7's with the goal of performing binary classification between these two digits. We'll also try this with the digits 4 and 9. This dataset can be obtained from \cite{MNIST}, and they are the four files referred to as the training set and test set images and labels.
+We employ the MNIST dataset \cite{MNIST} to test our implementation. MNIST is a collection of 70,000 images of handwritten digits commonly used in image processing and pattern recognition research. The grayscale images are written in a binary file and consist of 28x28 arrays of integers ranging from 0 to 255 representing pixels varying from white to black. From this we separate out the set of 1's and 7's with the goal of performing binary classification between these two digits. It's common to also try this with the digits 4 and 9. This dataset can be obtained from \cite{MNIST}, and they are the four files referred to as the training set and test set images and labels, where the training set images and labels are called {\tt train-images-idx3-ubyte} and {\tt train-labels-idx3-ubyte} respectively. There are roughly 13,000 instances of 1's and 7's among the training set.
 
 To test the parallel efficiency of this implementation, I ran the program on the host {\bf crunchy1} with 20 rounds of boosting with varying the number of processors as given in the following table. This gives the amount of time it took for the program to run as a whole in addition to the average time per processor spent constructing trees, since I wanted to measure the time spent in parallel without the extra overhead time performing serial tasks.
 
-  
+\begin{center}
+\begin{tabular}{|r|r|r|r|r|r|}
+\hline
+no. of processors &1&2&4&8&16\\ \hline
+elapsed time (s) &56.72 &25.88 &12.94 &6.52 &3.03 \\ \hline
+avg. tree-building time (s) &36.898 &16.825 &8.632 &4.434 &1.915 \\ \hline
+\end{tabular}
+\end{center}
 
+A noticeable speedup occurs, and doubling the number of processors roughly splits the time in half at each stage. This was done on a cluster with four 16-core processors so we aren't hitting any performance walls. However when attempting this on my local machine with eight cores, while it performed the computations faster I did not see the same gains in doubling the number of processors. There were less improvements in going from one processor to two to four, though they were still noticeable. And using all eight took more time than just four, though perhaps that ought to be expected since there are other processes going on in the background. Nevertheless, using the {\bf crunchy1} host showed the improvements gained by utilizing a parallel structure for building the decision trees.
 
-
-%With the MNIST dataset, a speedup by a factor of roughly four can be achieved when using four processors, yet increasing beyond this does not give any noticeable gains.
 
 
 \section{Useage}
@@ -229,6 +239,10 @@ I used MPICH for the MPI processor communications. To use the parallel boosting 
 {\tt mpirun -np 4 ./pboost 50}
 \end{center}
 
+\noindent The source code and this paper are available at:
+\begin{center}
+{\tt https://github.com/josephpmcdonald/HPC15-ParallelBoosting/}
+\end{center}
 
 %\maketitle
 %
@@ -258,18 +272,14 @@ I used MPICH for the MPI processor communications. To use the parallel boosting 
 
 
 
-%\begin{thebibliography}
-%\bibitem{FS} Yoav Freund Rob Schapire
-
-%\bibitem{HTF} Hastie Friedman Tibshirani
-
-%\bibitem{Mohri} Mohri
-
-%\bibitem{no4} Wiki AdaBoost
-
-%\bibitem{MNIST} Yann LeCun MNIST
-
-%\end{thebibliography}
+\begin{thebibliography}{99}
+\bibitem{FS} Yoav Freund and Rob Schapire. A Decision-Theoretic Generalization of On-Line Learning
+and an Application to Boosting. {\it Journal of Computer and System Sciences}, 55:119-139, 1997.
+\bibitem{HTF} T. Hastie, R. Tibshirani, J. Friedman. {\it The Elements of Statistical Learning: Data Mining, Inference, and Prediction}. Springer-Verlag, 2009.
+\bibitem{Mohri} M. Mohri, A. Rostamizadeh, A. Talwalkar. {\it Foundations of Machine Learning}. MIT press, 2012.
+\bibitem{no4} "AdaBoost". {\it Wikipedia}. {\tt https://en.wikipedia.org/wiki/AdaBoost}
+\bibitem{MNIST} Yann LeCun, Corinna Cortes, Christopher J. C. Burges. {\it The MNIST Database}. {\tt http://yann.lecun.com/exdb/mnist/}
+\end{thebibliography}
 \end{document}
 
 
